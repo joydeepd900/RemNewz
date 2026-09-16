@@ -96,10 +96,11 @@ RemNewz operates as a single Telegram bot presenting three specialized personas 
 
 - **FR16 — Single-User Authorization:** Verify incoming message `chat.id == TELEGRAM_CHAT_ID`. Silently ignore any updates from unauthorized users.
 - **FR17 — Secret Isolation:** Zero secrets, tokens, or credentials in source code or git history. All credentials injected via GitHub Actions Secrets.
-- **FR18 — Universal Encryption & Repo Mode Toggle:**
-  - Standardize **AES-256 (Fernet) encryption-at-rest** (`todos.enc`, `archive_todos.enc`) across **both** public and private repositories using an `ENCRYPTION_KEY` secret. Plaintext fallback is supported if the key is omitted.
-  - *Public Repo Mode:* Runs `commands.yml` at high frequency (every **3–5 minutes**) with unlimited free Actions minutes, 100% encrypted at rest.
-  - *Private Repo Mode:* Runs `commands.yml` at **35-minute intervals** (`0,35 * * * *`) to stay comfortably within the 2,000 monthly free Actions minutes limit.
+- **FR18 — Storage & Repo Mode Toggle:**
+  - Phases 0–3 use **plain JSON** (`todos.json`, `archive_todos.json`) for simplicity and debuggability.
+  - Phase 4 introduces **optional AES-256 (Fernet) encryption-at-rest** (`todos.enc`, `archive_todos.enc`) via an `ENCRYPTION_KEY` secret, standardized across both public and private repos. Plaintext remains the fallback if the key is omitted.
+  - *Public Repo Mode:* Runs `commands.yml` at high frequency (every **3–5 minutes**) with unlimited free Actions minutes.
+  - *Private Repo Mode:* Runs `commands.yml` at **35-minute intervals** (`0,35 * * * *`) to stay within the 2,000 monthly free Actions minutes limit.
 - **FR19 — Concurrency & Push Resilience:** Use GitHub Actions concurrency groups and a `git pull --rebase` retry loop to prevent push conflicts between workflows.
 
 ---

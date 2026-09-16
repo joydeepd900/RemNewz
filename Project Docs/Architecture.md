@@ -108,16 +108,19 @@ remnewz/
   - Tapping feedback records tag weights in `data/settings.json` (`preferred_tags`, `suppressed_tags`).
   - Future candidate ranking boosts preferred tags and filters out suppressed tags before sending to the AI synthesis step.
 
-### 4.2 Storage & Privacy Subsystem (Universal Encryption)
-1. **Universal Encryption-at-Rest (Standard for Public & Private Repos):**
-   - Standardizes **AES-256 (Fernet)** symmetric encryption (`todos.enc`, `archive_todos.enc`) across **both** public and private repositories using an `ENCRYPTION_KEY` secret.
-   - Symmetrically encrypted in git; decrypted into runner memory at execution time.
-   - Plaintext tasks never appear in git history regardless of repo visibility.
-2. **Plaintext Fallback Mode:**
-   - If `ENCRYPTION_KEY` is omitted, standard `data/todos.json` and `data/archive_todos.json` are used directly for low-friction setup.
+### 4.2 Storage & Privacy Subsystem
+
+Phases 0–3 use **plain JSON** for simplicity, debuggability, and fast iteration. Encryption is added in Phase 4 once there is real data worth protecting.
+
+1. **Plain JSON Mode (Phases 0–3, default):**
+   - `data/todos.json` and `data/archive_todos.json` are readable JSON files committed directly to git.
+   - Ideal for private repositories and local development.
+2. **Encrypted Mode (Phase 4+, optional):**
+   - When `ENCRYPTION_KEY` is provided, `engine/crypto.py` encrypts task files to `todos.enc` / `archive_todos.enc` via **AES-256 (Fernet)** before git commit, and decrypts in runner memory.
+   - Standardized across both public and private repos.
 3. **Repository Mode Cadence Toggle:**
-   - *Public Repositories:* Unlimited Actions minutes allow high-frequency polling (**every 3–5 minutes**), delivering near-instant responses with full privacy at rest.
-   - *Private Repositories:* Scheduled at **35-minute intervals** (`0,35 * * * *`) to stay comfortably within the 2,000 monthly free minutes quota.
+   - *Public Repositories:* Unlimited Actions minutes allow high-frequency polling (**every 3–5 minutes**).
+   - *Private Repositories:* Scheduled at **35-minute intervals** (`0,35 * * * *`) to stay within the 2,000 monthly free minutes quota.
 
 ### 4.3 Git Concurrency & Conflict Prevention
 Because `digest.yml` and `commands.yml` run independently, simultaneous runs could cause git push rejections. RemNewz mitigates this through two layers:

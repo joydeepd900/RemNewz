@@ -1,0 +1,43 @@
+# RemNewz — Newzy Digest Workflow
+# Phase 0: Manual trigger only (workflow_dispatch).
+# Phase 1+: Adds cron schedule for 8:00 AM & 8:00 PM digest delivery.
+
+name: "Newzy Digest"
+
+on:
+  workflow_dispatch:
+    # Manual trigger via GitHub UI or API — used for Phase 0 testing.
+
+# Prevent concurrent runs from colliding on git state
+concurrency:
+  group: git-state-storage
+  cancel-in-progress: false
+
+jobs:
+  send-digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run digest pipeline
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          AI_PROVIDER: ${{ secrets.AI_PROVIDER }}
+          AI_MODEL: ${{ secrets.AI_MODEL }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          TIMEZONE: ${{ secrets.TIMEZONE }}
+        run: python main_digest.py

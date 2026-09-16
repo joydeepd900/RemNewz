@@ -1,0 +1,27 @@
+# Security - NEVER commit secrets!
+.env
+*.env.*
+
+# Python Virtual Environments
+venv/
+.venv/
+env/
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+
+# IDE / Editor Files
+.vscode/
+.idea/
+*.swp
+*.DS_Store
+
+# OS Files
+Thumbs.db
+
+# Distribution / Packaging
+dist/
+build/

@@ -1,0 +1,44 @@
+# RemNewz — Default Configuration
+# Users: copy this to config.yml or override via Helpzy (/config) in Telegram.
+# Dynamic overrides are stored in data/settings.json and take precedence.
+
+# --- News & Discovery (Newzy) ---
+topics:
+  - artificial-intelligence
+  - machine-learning
+  - python
+  - rust
+  - open-source
+
+keywords:
+  - LLM
+  - transformer
+  - diffusion
+  - agent
+  - RAG
+
+rss_feeds:
+  - url: "https://hnrss.org/newest?points=100"
+    label: "Hacker News (100+ points)"
+  - url: "https://lobste.rs/rss"
+    label: "Lobsters"
+  - url: "https://feeds.arstechnica.com/arstechnica/technology-lab"
+    label: "Ars Technica"
+
+# --- Digest Schedule ---
+# Cron times are calculated relative to the user's timezone below.
+digest_times:
+  - "08:00"
+  - "20:00"
+
+# --- Digest Style ---
+# Options: concise | deep_dive | technical | bullet_points
+digest_style: "concise"
+
+# --- User Timezone (IANA) ---
+timezone: "Asia/Kolkata"
+
+# --- AI Provider ---
+# Set via environment variables: AI_PROVIDER, AI_MODEL, AI_API_KEY
+# Supported providers: gemini, openrouter, groq
+# If no AI key is configured, the bot falls back to deterministic formatting.
