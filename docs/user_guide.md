@@ -510,4 +510,24 @@ No. RemNewz enforces single-user security. Only messages from the authorized `TE
 3. Select **Newzy Digest** on the left menu.
 4. Click **Run workflow** -> **Run workflow**.
 
+### Why aren't command suggestions appearing when I type `/`?
+
+Telegram clients only show the command suggestion popup and menu button after the bot's commands are registered with Telegram. If you set up your own bot, you can register them in seconds via **@BotFather**:
+
+1. Message **@BotFather** on Telegram and send `/setcommands`.
+2. Choose your bot.
+3. Paste the following command list:
+
+   ```text
+   todo - Add a task (e.g. /todo Read docs by 5pm)
+   list - View active tasks
+   done - Mark task completed (e.g. /done abc1234)
+   remove - Delete task permanently
+   history - View recently completed tasks
+   config - Settings, timezones & topic binding
+   help - Show command reference & help
+   ```
+
+4. If commands were recently registered, **restart your Telegram app** or switch chats and come back to force Telegram to refresh its local command cache.
+
 ---
