@@ -12,6 +12,7 @@ import os
 import time
 import json
 import requests
+import re
 
 # Telegram Bot API limit (chars, not bytes)
 MAX_MESSAGE_LENGTH = 4096
@@ -46,14 +47,7 @@ def _chunk_message(text, max_length=MAX_MESSAGE_LENGTH):
     """Split a message into chunks that fit within Telegram's character limit.
 
     Splits at line boundaries to preserve HTML formatting.
-    Falls back to hard-split if a single line exceeds the limit.
-
-    Args:
-        text: The full message text.
-        max_length: Maximum characters per chunk.
-
-    Returns:
-        A list of message chunks.
+    Tracks open tags to close and reopen them across chunks.
     """
     if len(text) <= max_length:
         return [text]
@@ -61,32 +55,54 @@ def _chunk_message(text, max_length=MAX_MESSAGE_LENGTH):
     chunks = []
     lines = text.split("\n")
     current_chunk = ""
+    open_tags = []
+    
+    tag_pattern = re.compile(r'</?([a-zA-Z0-9-]+)[^>]*>')
+    
+    def update_tags(line_segment):
+        for match in tag_pattern.finditer(line_segment):
+            tag_text = match.group(0)
+            tag_name = match.group(1).lower()
+            if tag_text.startswith('</'):
+                if open_tags and open_tags[-1][0] == tag_name:
+                    open_tags.pop()
+            else:
+                open_tags.append((tag_name, tag_text))
 
     for line in lines:
-        # If a single line exceeds the limit, hard-split it
         if len(line) > max_length:
             if current_chunk:
-                chunks.append(current_chunk.rstrip("\n"))
+                close_str = "".join(f"</{tag[0]}>" for tag in reversed(open_tags))
+                chunks.append(current_chunk.rstrip("\n") + close_str)
                 current_chunk = ""
-            # Split the long line into max_length segments
             for i in range(0, len(line), max_length):
                 chunks.append(line[i:i + max_length])
             continue
 
-        # Check if adding this line would exceed the limit
         candidate = current_chunk + line + "\n"
         if len(candidate) > max_length:
             if current_chunk:
-                chunks.append(current_chunk.rstrip("\n"))
-            current_chunk = line + "\n"
+                close_str = "".join(f"</{tag[0]}>" for tag in reversed(open_tags))
+                chunks.append(current_chunk.rstrip("\n") + close_str)
+                
+                open_str = "".join(tag[1] for tag in open_tags)
+                current_chunk = open_str + line + "\n"
+                update_tags(line)
+            else:
+                current_chunk = line + "\n"
+                update_tags(line)
         else:
             current_chunk = candidate
+            update_tags(line)
 
     if current_chunk.strip():
-        chunks.append(current_chunk.rstrip("\n"))
+        close_str = "".join(f"</{tag[0]}>" for tag in reversed(open_tags))
+        if close_str and not current_chunk.rstrip("\n").endswith(close_str):
+             chunks.append(current_chunk.rstrip("\n") + close_str)
+        else:
+             chunks.append(current_chunk.rstrip("\n"))
 
     return chunks
-
 
 def send_message(text, parse_mode="HTML", reply_markup=None, disable_preview=True, chat_id=None, message_thread_id=None):
     """Send a message to the configured Telegram chat, with auto-chunking.
@@ -166,6 +182,20 @@ def _send_with_retry(payload):
             return result
 
         except requests.exceptions.RequestException as e:
+            if hasattr(e, 'response') and e.response is not None and e.response.status_code == 400:
+                try:
+                    err_desc = e.response.json().get("description", "")
+                    if "can't parse entities" in err_desc.lower() or "html" in err_desc.lower():
+                        print(f"[telegram] HTML parse error: {err_desc}. Falling back to plain text.")
+                        if "parse_mode" in payload:
+                            payload.pop("parse_mode")
+                        # Try once more without formatting, bypassing standard retry
+                        resp = requests.post(url, json=payload, timeout=30)
+                        resp.raise_for_status()
+                        return resp.json()
+                except Exception:
+                    pass
+
             if attempt == MAX_RETRIES:
                 print(f"[telegram] FAILED after {MAX_RETRIES} attempts: {e}")
                 raise

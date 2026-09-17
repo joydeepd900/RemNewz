@@ -2,6 +2,9 @@ import os
 import json
 from cryptography.fernet import Fernet, InvalidToken
 
+class DecryptionError(Exception):
+    pass
+
 class CryptoManager:
     def __init__(self):
         self.key = os.environ.get("ENCRYPTION_KEY")
@@ -28,8 +31,6 @@ class CryptoManager:
             json_data = self.fernet.decrypt(cipher_data)
             return json.loads(json_data.decode('utf-8'))
         except InvalidToken:
-            print("[crypto] Decryption failed! Invalid token/key.")
-            return []
+            raise DecryptionError("Decryption failed! Invalid token/key.")
         except Exception as e:
-            print(f"[crypto] Decryption error: {e}")
-            return []
+            raise DecryptionError(f"Decryption error: {e}")

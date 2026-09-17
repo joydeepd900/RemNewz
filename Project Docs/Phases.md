@@ -81,7 +81,7 @@ This roadmap divides the build into modular, verifiable phases. Each phase concl
 
 - **Tasks:**
   - Implement `engine/crypto.py` with AES-256 (Fernet) encryption at rest.
-  - If `ENCRYPTION_KEY` is present in secrets, encrypt `todos.enc` and `archive_todos.enc` before git commit; decrypt in runner memory. Standardize across both public and private repos.
+  - Set up `ENCRYPTION_KEY` in GitHub Secrets to enable symmetric Fernet encryption (AES-128-CBC) for all task storage.enc` and `archive_todos.enc` before git commit; decrypt in runner memory. Standardize across both public and private repos.
   - Validate that zero plaintext tasks appear in git history.
   - Polish `config.example.yml` with helpful commentary and cadence mode toggle (`public` vs `private`).
   - Write comprehensive, beginner-friendly `README.md` covering:

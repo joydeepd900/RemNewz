@@ -1,4 +1,5 @@
 import uuid
+import html
 from datetime import datetime, timezone, timedelta
 from engine.store import TaskStore
 from engine.time_utils import format_datetime
@@ -41,7 +42,8 @@ class Remzy:
             if task["due_at"]:
                 formatted_due = format_datetime(datetime.fromisoformat(task["due_at"]), style="short")
                 
-            send_message(f"✅ <b>Task Created:</b> {task['title']}\n📅 Due: {formatted_due}\n🆔 <code>{task['id']}</code>", chat_id=chat_id, message_thread_id=message_thread_id)
+            safe_title = html.escape(task['title'])
+            send_message(f"✅ <b>Task Created:</b> {safe_title}\n📅 Due: {formatted_due}\n🆔 <code>{task['id']}</code>", chat_id=chat_id, message_thread_id=message_thread_id)
             return True
             
         if cmd == "/list":
@@ -52,7 +54,8 @@ class Remzy:
             msg = "📋 <b>Active Tasks</b>\n\n"
             for t in self.store.todos:
                 formatted_due = format_datetime(datetime.fromisoformat(t["due_at"]), style="short") if t.get("due_at") else "No deadline"
-                msg += f"• <b>{t['title']}</b>\n  └ <i>{formatted_due}</i> (<code>/done {t['id']}</code>)\n"
+                safe_title = html.escape(t['title'])
+                msg += f"• <b>{safe_title}</b>\n  └ <i>{formatted_due}</i> (<code>/done {t['id']}</code>)\n"
             send_message(msg, chat_id=chat_id, message_thread_id=message_thread_id)
             return True
             
@@ -92,7 +95,8 @@ class Remzy:
             msg = "📜 <b>Recently Completed (Last 10)</b>\n\n"
             for t in self.store.archive[:10]:
                 completed = format_datetime(datetime.fromisoformat(t["completed_at"]), style="short")
-                msg += f"• <s>{t['title']}</s> (<i>{completed}</i>)\n"
+                safe_title = html.escape(t['title'])
+                msg += f"• <s>{safe_title}</s> (<i>{completed}</i>)\n"
             send_message(msg, chat_id=chat_id, message_thread_id=message_thread_id)
             return True
             
@@ -154,9 +158,11 @@ class Remzy:
                     if last_nudge_str:
                         try:
                             last_nudge = datetime.fromisoformat(last_nudge_str)
+                            if last_nudge.tzinfo is None:
+                                last_nudge = last_nudge.replace(tzinfo=timezone.utc)
                             time_since_nudge = now_utc - last_nudge
                             needs_nudge = time_since_nudge >= timedelta(hours=24)
-                        except ValueError:
+                        except (ValueError, TypeError):
                             needs_nudge = True
                     else:
                         needs_nudge = True
@@ -170,13 +176,13 @@ class Remzy:
             self.store.save()
 
     def _send_due_alert(self, task, due_at, chat_id=None, message_thread_id=None):
-        title = task.get("title", "Unnamed Task")
+        title = html.escape(task.get("title", "Unnamed Task"))
         formatted_time = format_datetime(due_at, style="short")
         msg = f"🔔 <b>Task Due!</b>\n\n<b>{title}</b>\n<i>Due at: {formatted_time}</i>\n\nReply with <code>/done {task.get('id')}</code> to complete."
         send_message(msg, chat_id=chat_id, message_thread_id=message_thread_id)
 
     def _send_overdue_alert(self, task, due_at, chat_id=None, message_thread_id=None):
-        title = task.get("title", "Unnamed Task")
+        title = html.escape(task.get("title", "Unnamed Task"))
         formatted_time = format_datetime(due_at, style="relative")
         msg = f"⚠️ <b>Overdue Reminder</b>\n\n<b>{title}</b>\n<i>Was due {formatted_time}</i>\n\nReply with <code>/done {task.get('id')}</code> to complete."
         send_message(msg, chat_id=chat_id, message_thread_id=message_thread_id)

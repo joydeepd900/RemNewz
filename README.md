@@ -8,7 +8,7 @@ An autonomous, serverless Telegram bot that acts as your personal AI News Anchor
 
 RemNewz fetches top posts from HackerNews and trending GitHub repositories based on your interests, uses an AI (Gemini, OpenRouter, or Groq) to synthesize them into concise, informative summaries, and delivers them directly to your Telegram. 
 
-It also functions as a full Natural Language Processing (NLP) Task Manager. Simply interact with it via chat (e.g., `/todo Remind me to review the architecture doc tomorrow at 5pm`), and it will parse your deadline, store it securely using AES-256 encryption, and notify you when it is due.
+It also functions as a full Natural Language Processing (NLP) Task Manager. Simply interact with it via chat (e.g., `/todo Remind me to review the architecture doc tomorrow at 5pm`), and it will parse your deadline, store it securely using Fernet encryption (AES-128-CBC), and notify you when it is due.
 
 ## Features
 
@@ -37,7 +37,7 @@ It also functions as a full Natural Language Processing (NLP) Task Manager. Simp
 
 ### 3. Generate an Encryption Key (Recommended)
 
-Run this Python snippet locally to generate a secure AES-256 key:
+Run this Python snippet locally to generate a secure Fernet key:
 
 ```python
 from cryptography.fernet import Fernet

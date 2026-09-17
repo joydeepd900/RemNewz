@@ -54,7 +54,7 @@ RemNewz operates as a single Telegram bot presenting three specialized personas 
 4. **Seamless News-to-Task Pipeline:** Bridge the gap between reading news and taking action via 1-tap inline buttons and context-aware task creation.
 5. **Conversational Task Management:** Natural language task parsing, status tracking, and intelligent reminder cadences that respect user focus.
 6. **Self-Hostable GitHub Template:** Any user can fork or instantiate the repository, configure secrets, and have their own private or public instance running in minutes.
-7. **Privacy in Public Repositories:** Support optional symmetric encryption-at-rest (`AES-256 / Fernet`) so users who run in public repos (for unlimited free Actions minutes) never expose their personal to-dos or private notes.
+7. **Privacy in Public Repositories:** Support optional symmetric encryption-at-rest (`Fernet / AES-128-CBC`) so users who run in public repos (for unlimited free Actions minutes) never expose their personal to-dos or private notes.
 8. **Zero Operational Cost ($0):** Run 100% on free tiers (GitHub Actions, Telegram Bot API, free AI provider tiers) with zero server maintenance.
 
 ### 3.2 Non-Goals (v1)
@@ -100,7 +100,7 @@ RemNewz operates as a single Telegram bot presenting three specialized personas 
 - **FR17 — Secret Isolation:** Zero secrets, tokens, or credentials in source code or git history. All credentials injected via GitHub Actions Secrets.
 - **FR18 — Storage & Repo Mode Toggle:**
   - Phases 0–3 use **plain JSON** (`todos.json`, `archive_todos.json`) for simplicity and debuggability.
-  - Phase 4 introduces **optional AES-256 (Fernet) encryption-at-rest** (`todos.enc`, `archive_todos.enc`) via an `ENCRYPTION_KEY` secret, standardized across both public and private repos. Plaintext remains the fallback if the key is omitted.
+  - Phase 4 introduces **optional Fernet encryption-at-rest** (`todos.enc`, `archive_todos.enc`) via an `ENCRYPTION_KEY` secret, standardized across both public and private repos. Plaintext remains the fallback if the key is omitted.
   - *Public Repo Mode:* Runs `commands.yml` at high frequency (every **3–5 minutes**) with unlimited free Actions minutes.
   - *Private Repo Mode:* Runs `commands.yml` at **35-minute intervals** (`0,35 * * * *`) to stay within the 2,000 monthly free Actions minutes limit.
 - **FR19 — Concurrency & Push Resilience:** Use GitHub Actions concurrency groups and a `git pull --rebase` retry loop to prevent push conflicts between workflows.
@@ -126,5 +126,5 @@ RemNewz operates as a single Telegram bot presenting three specialized personas 
 - **Runners:** Headless Linux GitHub Actions runners (`ubuntu-latest`).
 - **Actions Minutes & Schedule Options:**
   - **Private Repositories:** GitHub allocates **2,000 free runner minutes per month**. `commands.yml` is scheduled at **35-minute intervals** (`0,35 * * * *`), running 48 times/day $\approx 1,440$ minutes/month. Combined with twice-daily digests ($\approx 60$ minutes/month), total usage is $\approx 1,500$ minutes/month, safely within quota.
-  - **Public Repositories:** GitHub provides **unlimited free runner minutes**. When paired with our universal **AES-256 encryption-at-rest**, users can toggle high-frequency polling (**every 3–5 minutes**) with complete privacy.
+  - **Public Repositories:** GitHub provides **unlimited free runner minutes**. When paired with our universal **Fernet encryption-at-rest**, users can toggle high-frequency polling (**every 3–5 minutes**) with complete privacy.
   - **Instantaneous Webhook Alternative:** For private repo users desiring sub-second responses without making their repo public, an optional free Cloudflare Workers webhook proxy is documented as an advanced recommendation.

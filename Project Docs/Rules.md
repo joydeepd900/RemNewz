@@ -11,7 +11,7 @@ Read this before writing code or making architectural adjustments. These rules a
 - **Log Hygiene:** Never log API keys, bearer tokens, or raw Telegram payloads containing secrets in standard output or error logs.
 - **Strict Allowlist:** Always verify `update.message.chat.id == TELEGRAM_CHAT_ID` or `update.callback_query.message.chat.id == TELEGRAM_CHAT_ID` before processing any command. Silently drop updates from any other user or chat.
 - **Template Sanitization:** `config.example.yml` must only contain generic, non-identifying sample topics, feeds, and styles. Personal configurations must remain in `data/settings.json` or private `.gitignore` files.
-- **Universal Encryption:** Standardize AES-256 Fernet encryption (`.enc`) across both public and private repositories when `ENCRYPTION_KEY` is provided. Plaintext personal tasks must never be committed to git unless the user explicitly leaves encryption disabled.
+- **Universal Encryption:** Standardize Fernet encryption (`.enc`, AES-128-CBC with SHA256 HMAC) across both public and private repositories when `ENCRYPTION_KEY` is provided. Plaintext personal tasks must never be committed to git unless the user explicitly leaves encryption disabled.
 
 ---
 

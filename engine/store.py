@@ -1,7 +1,7 @@
 import os
 import json
 from datetime import datetime, timezone
-from engine.crypto import CryptoManager
+from engine.crypto import CryptoManager, DecryptionError
 
 DATA_DIR = "data"
 TODOS_FILE = os.path.join(DATA_DIR, "todos.json")
@@ -24,52 +24,80 @@ class TaskStore:
         self.todos = []
         self.archive = []
         self.crypto = CryptoManager()
+        self.load_failed = False
         self._load()
 
     def _load(self):
         if not os.path.exists(DATA_DIR):
             os.makedirs(DATA_DIR, exist_ok=True)
             
-        # Load active tasks
-        if self.crypto.is_enabled and os.path.exists(self.todos_path_enc):
-            with open(self.todos_path_enc, "rb") as f:
-                self.todos = self.crypto.decrypt_dict(f.read())
-        elif os.path.exists(self.todos_path):
-            try:
-                with open(self.todos_path, "r", encoding="utf-8") as f:
-                    self.todos = json.load(f)
-            except (json.JSONDecodeError, IOError):
-                self.todos = []
+        try:
+            # Load active tasks
+            if self.crypto.is_enabled and os.path.exists(self.todos_path_enc):
+                with open(self.todos_path_enc, "rb") as f:
+                    self.todos = self.crypto.decrypt_dict(f.read())
+            elif os.path.exists(self.todos_path):
+                try:
+                    with open(self.todos_path, "r", encoding="utf-8") as f:
+                        self.todos = json.load(f)
+                except (json.JSONDecodeError, IOError):
+                    self.todos = []
+            
+            # Load archive tasks
+            if self.crypto.is_enabled and os.path.exists(self.archive_path_enc):
+                with open(self.archive_path_enc, "rb") as f:
+                    self.archive = self.crypto.decrypt_dict(f.read())
+            elif os.path.exists(self.archive_path):
+                try:
+                    with open(self.archive_path, "r", encoding="utf-8") as f:
+                        self.archive = json.load(f)
+                except (json.JSONDecodeError, IOError):
+                    self.archive = []
+        except DecryptionError as e:
+            self.load_failed = True
+            print(f"[store] FATAL: {e}")
+            raise
+
+    def _atomic_write(self, file_path, data, is_binary=False):
+        tmp_path = file_path + ".tmp"
+        mode = "wb" if is_binary else "w"
+        encoding = None if is_binary else "utf-8"
         
-        # Load archive tasks
-        if self.crypto.is_enabled and os.path.exists(self.archive_path_enc):
-            with open(self.archive_path_enc, "rb") as f:
-                self.archive = self.crypto.decrypt_dict(f.read())
-        elif os.path.exists(self.archive_path):
-            try:
-                with open(self.archive_path, "r", encoding="utf-8") as f:
-                    self.archive = json.load(f)
-            except (json.JSONDecodeError, IOError):
-                self.archive = []
+        with open(tmp_path, mode, encoding=encoding) as f:
+            if is_binary:
+                f.write(data)
+            else:
+                json.dump(data, f, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, file_path)
 
     def save(self):
+        if self.load_failed:
+            raise RuntimeError("TaskStore is in an invalid/unloaded state due to decryption failure. Writes are blocked to prevent data loss.")
+            
         try:
             if self.crypto.is_enabled:
-                with open(self.todos_path_enc, "wb") as f:
-                    f.write(self.crypto.encrypt_dict(self.todos))
-                with open(self.archive_path_enc, "wb") as f:
-                    f.write(self.crypto.encrypt_dict(self.archive))
+                todos_cipher = self.crypto.encrypt_dict(self.todos)
+                archive_cipher = self.crypto.encrypt_dict(self.archive)
                 
-                # Migration cleanup: remove plaintext if encryption is on
-                if os.path.exists(self.todos_path):
-                    os.remove(self.todos_path)
-                if os.path.exists(self.archive_path):
-                    os.remove(self.archive_path)
+                self._atomic_write(self.todos_path_enc, todos_cipher, is_binary=True)
+                self._atomic_write(self.archive_path_enc, archive_cipher, is_binary=True)
+                
+                # Verified Migration cleanup: only remove plaintext if we can decrypt back
+                try:
+                    self.crypto.decrypt_dict(todos_cipher)
+                    self.crypto.decrypt_dict(archive_cipher)
+                    
+                    if os.path.exists(self.todos_path):
+                        os.remove(self.todos_path)
+                    if os.path.exists(self.archive_path):
+                        os.remove(self.archive_path)
+                except DecryptionError as e:
+                    print(f"[store] Integrity check failed post-encryption. Retaining plaintext. ({e})")
             else:
-                with open(self.todos_path, "w", encoding="utf-8") as f:
-                    json.dump(self.todos, f, indent=2)
-                with open(self.archive_path, "w", encoding="utf-8") as f:
-                    json.dump(self.archive, f, indent=2)
+                self._atomic_write(self.todos_path, self.todos, is_binary=False)
+                self._atomic_write(self.archive_path, self.archive, is_binary=False)
         except IOError as e:
             print(f"[store] Failed to save tasks: {e}")
 

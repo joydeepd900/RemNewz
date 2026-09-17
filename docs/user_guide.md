@@ -467,7 +467,7 @@ RemNewz runs serverlessly on GitHub Actions. Depending on your repository visibi
 
 - **Actions Minutes:** Unlimited and free.
 - **Polling Interval:** Runs every 3 to 5 minutes (`*/3 * * * *`).
-- **Privacy:** Task data is fully encrypted at rest using AES-256 (`ENCRYPTION_KEY`). Personal notes and to-dos remain private.
+- **Privacy:** Task data is fully encrypted at rest using Fernet (AES-128-CBC) (`ENCRYPTION_KEY`). Personal notes and to-dos remain private.
 
 ### Private Repositories (Quota-Efficient Batching or Webhook)
 
@@ -480,7 +480,8 @@ RemNewz runs serverlessly on GitHub Actions. Depending on your repository visibi
 
 ## 7. Security & Access Control
 
-- **Single-User Allowlist:** RemNewz only responds to the chat ID specified in `TELEGRAM_CHAT_ID`. Messages from unauthorized users or unexpected chats are silently ignored.
+- **Allowlist Enforcement:** RemNewz validates incoming messages against `TELEGRAM_CHAT_ID`. Messages from unauthorized direct messages or unrecognized chats are rejected.
+- **Supergroups vs. Personal Use:** When deployed in a Telegram Supergroup, all members in that authorized group can issue commands and receive updates (which acts as a shared team workspace for tasks and collective news updates). If you are using the Supergroup feature strictly for personal use, ensure no other members are added to the group (or restrict member permissions). User-level authorization for sensitive commands is planned for future releases.
 - **Secret Isolation:** API tokens, chat IDs, and encryption keys are stored exclusively in GitHub Actions Secrets and are never committed to git.
 - **Client-Side Encryption:** When `ENCRYPTION_KEY` is set, `todos.json` and `archive_todos.json` are encrypted into `todos.enc` and `archive_todos.enc` before git commits.
 
@@ -501,7 +502,7 @@ Send `/config` to Helpzy. If encrypted mode is active, active storage will show 
 
 ### Can other people in my Telegram group use the bot?
 
-No. RemNewz enforces single-user security. Only messages from the authorized `TELEGRAM_CHAT_ID` are processed.
+If `TELEGRAM_CHAT_ID` is set to a Supergroup ID, any member inside that group can interact with the bot. This allows shared team to-dos and team news feeds. If you intend to use the bot strictly for personal tasks, use a private 1-on-1 chat or do not add other members to your private Supergroup.
 
 ### How do I manually trigger a news digest?
 

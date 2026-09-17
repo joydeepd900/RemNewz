@@ -26,3 +26,6 @@ Thumbs.db
 dist/
 build/
 memory.md
+
+# Temporary Files
+*.tmp

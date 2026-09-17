@@ -229,7 +229,7 @@ sequenceDiagram
 ### 5.3 Git and Repository Policies
 - **No Commit Frequency Limits:** GitHub enforces **no limits on the number of commits** on either public or private repositories.
 - **Actions Minutes Quota:** GitHub allocates **2,000 minutes/month** on private repos. Running at 35-minute intervals (`0,35 * * * *`) runs twice an hour ($\approx 1,440$ minutes/month across 24h), fitting safely within the free allowance.
-- **High-Frequency Public Option:** In public repos, minutes are unlimited, enabling **3–5 minute** cron schedules with complete encryption-at-rest.
+- **Privacy via Encryption:** Because all state is stored directly in the git repository (to leverage GitHub as a free backend), it is vital that personal task data remains private even if the repository is public. A symmetric Fernet encryption key (`ENCRYPTION_KEY`) encrypts `.enc` files at rest, ensuring that no plaintext to-dos or private notes are exposed in the commit history.
 - **Latency Expectation:** Commands are responded to during the next sync window. If an immediate response is ever needed, the user can tap "Run workflow" in GitHub Mobile, or trigger a manual dispatch.
 
 ---

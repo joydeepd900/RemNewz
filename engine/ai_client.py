@@ -106,12 +106,14 @@ def _call_groq(prompt: str, model: str) -> str:
     except (KeyError, IndexError):
         raise ValueError("Unexpected response format from Groq")
 
+import html
+
 def _deterministic_fallback(item: dict) -> str:
     """Fallback formatting if no AI is configured."""
-    source = item.get('source', 'Unknown')
-    title = item.get('title', 'No Title')
+    source = html.escape(item.get('source', 'Unknown'))
+    title = html.escape(item.get('title', 'No Title'))
     url = item.get('url', '#')
-    summary = item.get('summary', '')
+    summary = html.escape(item.get('summary', ''))
     
     msg = f"📰 <b>{source}</b>\n\n"
     msg += f"<b><a href='{url}'>{title}</a></b>\n"
