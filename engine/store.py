@@ -1,33 +1,51 @@
 import os
 import json
 from datetime import datetime, timezone
+from engine.crypto import CryptoManager
 
 DATA_DIR = "data"
 TODOS_FILE = os.path.join(DATA_DIR, "todos.json")
 ARCHIVE_FILE = os.path.join(DATA_DIR, "archive_todos.json")
+TODOS_FILE_ENC = os.path.join(DATA_DIR, "todos.enc")
+ARCHIVE_FILE_ENC = os.path.join(DATA_DIR, "archive_todos.enc")
 MAX_ARCHIVE_ITEMS = 50
 
 class TaskStore:
-    def __init__(self, todos_path=TODOS_FILE, archive_path=ARCHIVE_FILE):
+    def __init__(self, 
+                 todos_path=TODOS_FILE, 
+                 archive_path=ARCHIVE_FILE, 
+                 todos_path_enc=TODOS_FILE_ENC, 
+                 archive_path_enc=ARCHIVE_FILE_ENC):
         self.todos_path = todos_path
         self.archive_path = archive_path
+        self.todos_path_enc = todos_path_enc
+        self.archive_path_enc = archive_path_enc
         
         self.todos = []
         self.archive = []
+        self.crypto = CryptoManager()
         self._load()
 
     def _load(self):
         if not os.path.exists(DATA_DIR):
             os.makedirs(DATA_DIR, exist_ok=True)
             
-        if os.path.exists(self.todos_path):
+        # Load active tasks
+        if self.crypto.is_enabled and os.path.exists(self.todos_path_enc):
+            with open(self.todos_path_enc, "rb") as f:
+                self.todos = self.crypto.decrypt_dict(f.read())
+        elif os.path.exists(self.todos_path):
             try:
                 with open(self.todos_path, "r", encoding="utf-8") as f:
                     self.todos = json.load(f)
             except (json.JSONDecodeError, IOError):
                 self.todos = []
-                
-        if os.path.exists(self.archive_path):
+        
+        # Load archive tasks
+        if self.crypto.is_enabled and os.path.exists(self.archive_path_enc):
+            with open(self.archive_path_enc, "rb") as f:
+                self.archive = self.crypto.decrypt_dict(f.read())
+        elif os.path.exists(self.archive_path):
             try:
                 with open(self.archive_path, "r", encoding="utf-8") as f:
                     self.archive = json.load(f)
@@ -36,10 +54,22 @@ class TaskStore:
 
     def save(self):
         try:
-            with open(self.todos_path, "w", encoding="utf-8") as f:
-                json.dump(self.todos, f, indent=2)
-            with open(self.archive_path, "w", encoding="utf-8") as f:
-                json.dump(self.archive, f, indent=2)
+            if self.crypto.is_enabled:
+                with open(self.todos_path_enc, "wb") as f:
+                    f.write(self.crypto.encrypt_dict(self.todos))
+                with open(self.archive_path_enc, "wb") as f:
+                    f.write(self.crypto.encrypt_dict(self.archive))
+                
+                # Migration cleanup: remove plaintext if encryption is on
+                if os.path.exists(self.todos_path):
+                    os.remove(self.todos_path)
+                if os.path.exists(self.archive_path):
+                    os.remove(self.archive_path)
+            else:
+                with open(self.todos_path, "w", encoding="utf-8") as f:
+                    json.dump(self.todos, f, indent=2)
+                with open(self.archive_path, "w", encoding="utf-8") as f:
+                    json.dump(self.archive, f, indent=2)
         except IOError as e:
             print(f"[store] Failed to save tasks: {e}")
 

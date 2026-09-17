@@ -1,43 +1,31 @@
-# RemNewz — Default Configuration
-# Users: copy this to config.yml or override via Helpzy (/config) in Telegram.
-# Dynamic overrides are stored in data/settings.json and take precedence.
+# RemNewz - Configuration File
+# Copy this to 'config.yml' if you're running locally.
+# Otherwise, for GitHub Actions, RemNewz will read directly from this file 
+# or use dynamic overrides from 'data/settings.json'.
 
-# --- News & Discovery (Newzy) ---
+# Topics the AI should search for on HackerNews/GitHub.
+# You can add or remove these via the Telegram /config add_topic command!
 topics:
-  - artificial-intelligence
-  - machine-learning
-  - cybersecurity
-  - open-source
+  - "Machine Learning"
+  - "Python"
+  - "Web Development"
+  - "Self-Hosted"
+  - "Open Source"
 
-keywords:
-  - LLM
-  - transformer
-  - diffusion
-  - agent
-  - RAG
+# Digest Style defines how the AI will summarize the news.
+# Common options: "sarcastic", "bulleted", "professional", "ELI5"
+digest_style: "sarcastic"
 
-rss_feeds:
-  - url: "https://hnrss.org/newest?points=100"
-    label: "Hacker News (100+ points)"
-  - url: "https://lobste.rs/rss"
-    label: "Lobsters"
-  - url: "https://feeds.arstechnica.com/arstechnica/technology-lab"
-    label: "Ars Technica"
-
-# --- Digest Schedule ---
-# Cron times are calculated relative to the user's timezone below.
-digest_times:
-  - "08:00"
-  - "20:00"
-
-# --- Digest Style ---
-# Options: concise | deep_dive | technical | bullet_points
-digest_style: "concise"
-
-# --- User Timezone (IANA) ---
-timezone: "Asia/Kolkata"
-
-# --- AI Provider ---
-# Set via environment variables: AI_PROVIDER, AI_MODEL, AI_API_KEY
-# Supported providers: gemini, openrouter, groq
-# If no AI key is configured, the bot falls back to deterministic formatting.
+# Public vs Private Repository Notes:
+# If you are running RemNewz in a PUBLIC repository:
+# - GitHub Actions minutes are free and unlimited.
+# - The Telegram poller (commands.yml) will run every 5 minutes automatically.
+# - WARNING: Your data/todos.json and data/settings.json will be publicly visible 
+#   UNLESS you set an ENCRYPTION_KEY in your GitHub Secrets.
+#
+# If you are running RemNewz in a PRIVATE repository:
+# - GitHub Actions minutes are capped (usually 2,000 min/month free).
+# - A 5-minute poller will burn ~8,000 minutes a month and exhaust your quota.
+# - Recommendation: Change the cron in commands.yml to '*/30 * * * *' (every 30 mins)
+#   or disable the poller entirely and use a free Cloudflare Worker Webhook proxy 
+#   for instantaneous, free Telegram replies.
