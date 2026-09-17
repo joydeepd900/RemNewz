@@ -79,18 +79,19 @@ def main():
     for item in items_to_process:
         print(f"[main_digest] Synthesizing: {item['title']}...")
         
-        # Synthesize text
-        msg_text = synthesize_item(item, digest_style, ai_provider, ai_model)
+        # Synthesize text and extract topic
+        msg_text, topic = synthesize_item(item, digest_style, ai_provider, ai_model)
         
         # Build interactive buttons
-        # Callback data max size is 64 bytes. For now we use placeholder actions.
-        # In Phase 3, we might need a short hash to map to the actual item URL.
-        # But we can store the url directly if it's short, or we just put standard commands.
-        reply_markup = build_inline_keyboard([[
-            {"text": "📌 Remind Me", "callback_data": f"remind_me"},
-            {"text": "👍", "callback_data": f"like_topic"},
-            {"text": "👎", "callback_data": f"dislike_topic"}
-        ]])
+        buttons = [{"text": "📌 Remind Me", "callback_data": "remind_me"}]
+        
+        if topic:
+            # Truncate topic to fit Telegram's 64-byte callback_data limit
+            safe_topic = topic[:40]
+            buttons.append({"text": "👍", "callback_data": f"like_{safe_topic}"})
+            buttons.append({"text": "👎", "callback_data": f"dislike_{safe_topic}"})
+            
+        reply_markup = build_inline_keyboard([buttons])
         
         print(f"[main_digest] Sending to Telegram: {item['title']}...")
         news_topic_id = resolve_topic_id("news")

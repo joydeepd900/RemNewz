@@ -33,7 +33,7 @@ def load_last_update_id() -> int:
                 data = json.load(f)
                 return data.get("last_id")
         except (json.JSONDecodeError, IOError):
-            pass
+            return -1
     return None
 
 def save_last_update_id(last_id: int):
@@ -69,7 +69,10 @@ def main():
             updates = []
     else:
         # Fallback to polling: fetch updates with a short timeout
-        offset = last_id + 1 if last_id else None
+        if last_id == -1:
+            offset = -1
+        else:
+            offset = last_id + 1 if last_id else None
         print(f"[main_commands] Fetching updates from Telegram (offset={offset})...")
         updates = get_updates(offset=offset, timeout=5)
     

@@ -60,11 +60,12 @@ class TestAIClient(unittest.TestCase):
             "summary": "A test repository"
         }
         
-        result = _deterministic_fallback(item)
+        result, topic = _deterministic_fallback(item)
         
         self.assertIn("Test Repo", result)
         self.assertIn("https://github.com/test/repo", result)
         self.assertIn("A test repository", result)
+        self.assertIsNone(topic)
 
     def test_synthesize_item_fallback(self):
         item = {
@@ -75,10 +76,11 @@ class TestAIClient(unittest.TestCase):
         }
         
         # Should use fallback if provider is 'none'
-        result = synthesize_item(item, style="concise", provider="none", model="any")
+        result, topic = synthesize_item(item, style="concise", provider="none", model="any")
         
         self.assertIn("Test News", result)
         self.assertIn("https://example.com/news", result)
+        self.assertIsNone(topic)
         
 if __name__ == '__main__':
     unittest.main()

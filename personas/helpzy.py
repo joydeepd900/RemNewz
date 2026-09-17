@@ -123,11 +123,16 @@ class Helpzy:
             
         return False
 
-    def handle_feedback(self, tag: str, weight: int):
-        """Adjust weight of a tag based on likes/dislikes."""
+    def handle_feedback(self, data: str, weight: int):
+        """Adjust weight of a topic based on likes/dislikes. Data is like_<topic> or dislike_<topic>."""
+        parts = data.split("_", 1)
+        if len(parts) < 2:
+            return
+            
+        topic = parts[1]
         weights = self.settings.get("tag_weights", {})
-        current = weights.get(tag, 0)
-        weights[tag] = current + weight
+        current = weights.get(topic, 0)
+        weights[topic] = current + weight
         self.settings["tag_weights"] = weights
         self._save()
         # No message sent, usually a toast via answerCallbackQuery handles it.

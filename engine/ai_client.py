@@ -1,12 +1,13 @@
 import os
 import requests
 import json
+import re
 
-def synthesize_item(item: dict, style: str, provider: str, model: str) -> str:
+def synthesize_item(item: dict, style: str, provider: str, model: str) -> tuple[str, str | None]:
     """
     Use an AI provider to summarize/synthesize a single news item based on the requested style.
-    Returns the synthesized text (preferably HTML formatted).
-    If provider is 'none' or fails, returns a deterministic fallback string.
+    Returns a tuple of (synthesized_text, topic).
+    If provider is 'none' or fails, returns (fallback_string, None).
     """
     if provider.lower() == "none" or not model:
         return _deterministic_fallback(item)
@@ -15,14 +16,23 @@ def synthesize_item(item: dict, style: str, provider: str, model: str) -> str:
     
     try:
         if provider.lower() == "gemini":
-            return _call_gemini(prompt, model)
+            raw_output = _call_gemini(prompt, model)
         elif provider.lower() == "openrouter":
-            return _call_openrouter(prompt, model)
+            raw_output = _call_openrouter(prompt, model)
         elif provider.lower() == "groq":
-            return _call_groq(prompt, model)
+            raw_output = _call_groq(prompt, model)
         else:
             print(f"[ai_client] Unknown provider {provider}, using fallback.")
             return _deterministic_fallback(item)
+            
+        topic = None
+        topic_match = re.search(r"TOPIC:\s*(.+)$", raw_output, re.IGNORECASE | re.MULTILINE)
+        if topic_match:
+            topic = topic_match.group(1).strip()
+            # Remove the TOPIC line from the message output
+            raw_output = re.sub(r"TOPIC:\s*(.+)$", "", raw_output, flags=re.IGNORECASE | re.MULTILINE).strip()
+            
+        return raw_output, topic
     except Exception as e:
         print(f"[ai_client] AI synthesis failed ({e}). Using fallback.")
         return _deterministic_fallback(item)
@@ -32,6 +42,8 @@ def _build_prompt(item: dict, style: str) -> str:
 You are an expert tech summarizer. Summarize the following news item in the '{style}' style.
 Keep it concise and punchy. Use HTML formatting (<b>, <i>, <code>, <a href="...">).
 Do not use Markdown. Do not include greetings.
+
+End your response with a newline followed by "TOPIC: <category>" where <category> is a 1-2 word topic describing the field (e.g. LLMs, Rust, DevOps, WebDev).
 
 Title: {item.get('title')}
 URL: {item.get('url')}
@@ -108,7 +120,7 @@ def _call_groq(prompt: str, model: str) -> str:
 
 import html
 
-def _deterministic_fallback(item: dict) -> str:
+def _deterministic_fallback(item: dict) -> tuple[str, str | None]:
     """Fallback formatting if no AI is configured."""
     source = html.escape(item.get('source', 'Unknown'))
     title = html.escape(item.get('title', 'No Title'))
@@ -120,9 +132,8 @@ def _deterministic_fallback(item: dict) -> str:
     if summary:
         msg += f"<i>{summary}</i>"
         
-    return msg
+    return msg, None
 
-import re
 from datetime import datetime, timezone, timedelta
 
 def parse_task_nlp(text: str, provider: str, model: str, user_tz: str) -> dict:
