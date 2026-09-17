@@ -1,13 +1,14 @@
 """
 main_commands.py — Entrypoint for the Remzy & Helpzy command workflow.
 
-Phase 2: Runs the deadline evaluator for tasks and sends due/overdue nudges.
-Phase 3+: Will act as the batched Telegram long-poller and NLP router.
+Phase 3: Fetches Telegram updates, routes commands to personas, evaluates deadlines,
+and allows commands.yml to persist state.
 """
 
+import os
 import sys
+import json
 
-# Fix Windows console encoding for emoji in print statements
 if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -16,21 +17,107 @@ if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
         pass
 
 from dotenv import load_dotenv
-
-# Load .env for local development
 load_dotenv()
 
 from personas.remzy import Remzy
+from personas.helpzy import Helpzy
+from notifier.telegram import get_updates, answer_callback_query
+
+DATA_DIR = "data"
+LAST_ID_FILE = os.path.join(DATA_DIR, "last_update_id.json")
+
+def load_last_update_id() -> int:
+    if os.path.exists(LAST_ID_FILE):
+        try:
+            with open(LAST_ID_FILE, "r") as f:
+                data = json.load(f)
+                return data.get("last_id")
+        except (json.JSONDecodeError, IOError):
+            pass
+    return None
+
+def save_last_update_id(last_id: int):
+    os.makedirs(DATA_DIR, exist_ok=True)
+    try:
+        with open(LAST_ID_FILE, "w") as f:
+            json.dump({"last_id": last_id}, f)
+    except IOError as e:
+        print(f"[main_commands] Failed to save last_update_id: {e}")
 
 def main():
-    print("[main_commands] Starting RemNewz commands pipeline (Phase 2)...")
+    print("[main_commands] Starting RemNewz commands pipeline (Phase 3)...")
     
-    # Run the deadline checker
+    allowed_chat_id = os.environ.get("TELEGRAM_CHAT_ID", "")
+    ai_provider = os.environ.get("AI_PROVIDER", "none")
+    ai_model = os.environ.get("AI_MODEL", "")
+    
     remzy = Remzy()
+    helpzy = Helpzy()
+    user_tz = helpzy.settings.get("timezone", "UTC")
+    
+    last_id = load_last_update_id()
+    
+    # We fetch updates with a short timeout since GitHub Actions runs on a schedule.
+    # We don't want to hang the action for long.
+    offset = last_id + 1 if last_id else None
+    print(f"[main_commands] Fetching updates from Telegram (offset={offset})...")
+    
+    updates = get_updates(offset=offset, timeout=5)
+    
+    highest_id = last_id
+    
+    for update in updates:
+        update_id = update.get("update_id")
+        if highest_id is None or update_id > highest_id:
+            highest_id = update_id
+            
+        # Handle Messages
+        if "message" in update:
+            msg = update["message"]
+            chat_id = str(msg.get("chat", {}).get("id", ""))
+            
+            # Security Allowlist Check
+            if chat_id != allowed_chat_id:
+                print(f"[main_commands] Blocked unauthorized message from chat {chat_id}")
+                continue
+                
+            text = msg.get("text", "")
+            if text.startswith("/"):
+                # Try Helpzy first, then Remzy
+                if not helpzy.handle_command(text):
+                    if not remzy.handle_command(text, ai_provider, ai_model, user_tz):
+                        pass # Ignore unknown commands
+                        
+        # Handle Callback Queries (Inline Buttons)
+        elif "callback_query" in update:
+            cb = update["callback_query"]
+            chat_id = str(cb.get("message", {}).get("chat", {}).get("id", ""))
+            
+            if chat_id != allowed_chat_id:
+                continue
+                
+            data = cb.get("data", "")
+            query_id = cb.get("id")
+            
+            if data == "remind_me":
+                remzy.handle_remind_me(data)
+                answer_callback_query(query_id, "Task Created!")
+            elif data.startswith("like_"):
+                helpzy.handle_feedback(data, 1)
+                answer_callback_query(query_id, "Feedback recorded (Like)")
+            elif data.startswith("dislike_"):
+                helpzy.handle_feedback(data, -1)
+                answer_callback_query(query_id, "Feedback recorded (Dislike)")
+            else:
+                answer_callback_query(query_id) # Acknowledge anyway
+
+    if highest_id is not None and highest_id != last_id:
+        save_last_update_id(highest_id)
+        
     print("[main_commands] Evaluating task deadlines...")
     remzy.check_deadlines()
     
-    print("[main_commands] Commands pipeline complete.")
+    print("[main_commands] Pipeline complete.")
     return 0
 
 if __name__ == "__main__":

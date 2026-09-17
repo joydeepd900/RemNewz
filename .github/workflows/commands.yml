@@ -1,0 +1,56 @@
+# RemNewz — Commands & Polling Workflow
+# Phase 3+: Fetches updates from Telegram, processes commands, and evaluates deadlines.
+
+name: "Commands Poller"
+
+on:
+  schedule:
+    - cron: '*/2 * * * *'  # Every 2 minutes for public repositories
+
+# Prevent concurrent runs from colliding on git state
+concurrency:
+  group: git-state-storage
+  cancel-in-progress: false
+
+jobs:
+  poll-and-process:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run commands pipeline
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          AI_PROVIDER: ${{ secrets.AI_PROVIDER }}
+          AI_MODEL: ${{ secrets.AI_MODEL }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: python main_commands.py
+
+      - name: Commit and push state changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(sync): update tasks and settings [skip ci]"
+            # Resilient Pull-Rebase loop
+            for i in 1 2 3; do
+              git pull --rebase origin main && git push origin main && break || sleep 5
+            done
+          fi

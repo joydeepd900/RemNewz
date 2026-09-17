@@ -189,3 +189,41 @@ def build_inline_keyboard(buttons):
             for row in buttons
         ]
     }
+
+def get_updates(offset=None, timeout=30):
+    """Fetch recent updates from Telegram.
+    
+    Args:
+        offset: The update_id to start fetching from.
+        timeout: Long polling timeout in seconds.
+        
+    Returns:
+        List of update dicts.
+    """
+    url = _api_url("getUpdates")
+    payload = {"timeout": timeout}
+    if offset:
+        payload["offset"] = offset
+        
+    try:
+        resp = requests.post(url, json=payload, timeout=timeout + 5)
+        resp.raise_for_status()
+        result = resp.json()
+        if result.get("ok"):
+            return result.get("result", [])
+        print(f"[telegram] getUpdates error: {result.get('description')}")
+    except requests.exceptions.RequestException as e:
+        print(f"[telegram] getUpdates failed: {e}")
+    return []
+
+def answer_callback_query(callback_query_id, text=None):
+    """Acknowledge a callback query to remove the loading state on the button."""
+    url = _api_url("answerCallbackQuery")
+    payload = {"callback_query_id": callback_query_id}
+    if text:
+        payload["text"] = text
+        
+    try:
+        requests.post(url, json=payload, timeout=10)
+    except requests.exceptions.RequestException as e:
+        print(f"[telegram] answerCallbackQuery failed: {e}")
