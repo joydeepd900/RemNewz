@@ -131,6 +131,8 @@ class Remzy:
                 if not reminded_due:
                     self._send_due_alert(task, due_at)
                     task["reminded_due"] = True
+                    # Initialize the nudge timer so we don't spam 5 minutes later
+                    task["last_overdue_nudge"] = now_utc.isoformat()
                     dirty = True
                 else:
                     last_nudge_str = task.get("last_overdue_nudge")
