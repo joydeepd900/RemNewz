@@ -70,4 +70,6 @@ Navigate to your repository **Settings > Secrets and variables > Actions** and a
 
 ## Advanced Configuration: Private Repositories & Webhooks
 
-If you are running a Private repository and require instantaneous chat replies without depleting your Action minutes, it is recommended to disable `commands.yml` and deploy a Cloudflare Worker. This worker can act as a webhook proxy, triggering a lightweight GitHub `repository_dispatch` event only when a message is received.
+If you are running a Private repository and require instantaneous chat replies without depleting your Action minutes, it is recommended to disable `commands.yml` and deploy a Cloudflare Worker. This worker acts as a webhook proxy, triggering a lightweight GitHub `repository_dispatch` event only when a message is received.
+
+For complete, step-by-step setup instructions, see the [Cloudflare Worker Webhook Proxy Guide](docs/cloudflare_worker_guide.md).
