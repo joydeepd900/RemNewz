@@ -125,6 +125,9 @@ class Remzy:
             except ValueError:
                 continue
 
+            if due_at.tzinfo is None:
+                due_at = due_at.replace(tzinfo=timezone.utc)
+
             if now_utc >= due_at:
                 reminded_due = task.get("reminded_due", False)
                 

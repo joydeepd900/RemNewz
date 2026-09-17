@@ -71,45 +71,48 @@ def main():
         if highest_id is None or update_id > highest_id:
             highest_id = update_id
             
-        # Handle Messages
-        if "message" in update:
-            msg = update["message"]
-            chat_id = str(msg.get("chat", {}).get("id", ""))
-            
-            # Security Allowlist Check
-            if chat_id != allowed_chat_id:
-                print(f"[main_commands] Blocked unauthorized message from chat {chat_id}")
-                continue
+        try:
+            # Handle Messages
+            if "message" in update:
+                msg = update["message"]
+                chat_id = str(msg.get("chat", {}).get("id", ""))
                 
-            text = msg.get("text", "")
-            if text.startswith("/"):
-                # Try Helpzy first, then Remzy
-                if not helpzy.handle_command(text):
-                    if not remzy.handle_command(text, ai_provider, ai_model, user_tz):
-                        pass # Ignore unknown commands
-                        
-        # Handle Callback Queries (Inline Buttons)
-        elif "callback_query" in update:
-            cb = update["callback_query"]
-            chat_id = str(cb.get("message", {}).get("chat", {}).get("id", ""))
-            
-            if chat_id != allowed_chat_id:
-                continue
+                # Security Allowlist Check
+                if chat_id != allowed_chat_id:
+                    print(f"[main_commands] Blocked unauthorized message from chat {chat_id}")
+                    continue
+                    
+                text = msg.get("text", "")
+                if text.startswith("/"):
+                    # Try Helpzy first, then Remzy
+                    if not helpzy.handle_command(text):
+                        if not remzy.handle_command(text, ai_provider, ai_model, user_tz):
+                            pass # Ignore unknown commands
+                            
+            # Handle Callback Queries (Inline Buttons)
+            elif "callback_query" in update:
+                cb = update["callback_query"]
+                chat_id = str(cb.get("message", {}).get("chat", {}).get("id", ""))
                 
-            data = cb.get("data", "")
-            query_id = cb.get("id")
-            
-            if data == "remind_me":
-                remzy.handle_remind_me(data)
-                answer_callback_query(query_id, "Task Created!")
-            elif data.startswith("like_"):
-                helpzy.handle_feedback(data, 1)
-                answer_callback_query(query_id, "Feedback recorded (Like)")
-            elif data.startswith("dislike_"):
-                helpzy.handle_feedback(data, -1)
-                answer_callback_query(query_id, "Feedback recorded (Dislike)")
-            else:
-                answer_callback_query(query_id) # Acknowledge anyway
+                if chat_id != allowed_chat_id:
+                    continue
+                    
+                data = cb.get("data", "")
+                query_id = cb.get("id")
+                
+                if data == "remind_me":
+                    remzy.handle_remind_me(data)
+                    answer_callback_query(query_id, "Task Created!")
+                elif data.startswith("like_"):
+                    helpzy.handle_feedback(data, 1)
+                    answer_callback_query(query_id, "Feedback recorded (Like)")
+                elif data.startswith("dislike_"):
+                    helpzy.handle_feedback(data, -1)
+                    answer_callback_query(query_id, "Feedback recorded (Dislike)")
+                else:
+                    answer_callback_query(query_id) # Acknowledge anyway
+        except Exception as e:
+            print(f"[main_commands] Error processing update {update_id}: {e}")
 
     if highest_id is not None and highest_id != last_id:
         save_last_update_id(highest_id)

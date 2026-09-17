@@ -156,8 +156,10 @@ Return strictly JSON. No markdown backticks.
         else:
             return _deterministic_task_fallback(text, user_tz)
             
-        # Clean potential markdown backticks
-        raw_output = raw_output.strip().removeprefix("```json").removesuffix("```").strip()
+        # Robust JSON extraction
+        match = re.search(r'\{.*\}', raw_output, re.DOTALL)
+        if match:
+            raw_output = match.group(0)
         parsed = json.loads(raw_output)
         return {
             "title": parsed.get("title", text),
