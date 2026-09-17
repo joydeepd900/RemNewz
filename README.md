@@ -59,8 +59,9 @@ Navigate to your repository **Settings > Secrets and variables > Actions** and a
 
 1. Navigate to the **Actions** tab in your repository.
 2. Accept the prompt to enable workflows.
-3. Click on **Commands Poller**, then select **Run workflow**.
-4. Go to Telegram and type `/help`. RemNewz is now active and ready to assist.
+3. Click on **Register Bot Commands**, then select **Run workflow**. This automatically pushes the bot's `/` command autocomplete menu to Telegram.
+4. Click on **Commands Poller**, then select **Run workflow**.
+5. Go to Telegram and type `/help`. RemNewz is now active and ready to assist.
 
 ## Commands and User Guide
 
