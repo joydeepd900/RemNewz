@@ -57,12 +57,21 @@ def main():
     
     last_id = load_last_update_id()
     
-    # We fetch updates with a short timeout since GitHub Actions runs on a schedule.
-    # We don't want to hang the action for long.
-    offset = last_id + 1 if last_id else None
-    print(f"[main_commands] Fetching updates from Telegram (offset={offset})...")
-    
-    updates = get_updates(offset=offset, timeout=5)
+    # Check if this run was triggered by a webhook dispatch (e.g. Cloudflare Worker)
+    webhook_payload = os.environ.get("TELEGRAM_UPDATE_PAYLOAD")
+    if webhook_payload and webhook_payload.strip() and webhook_payload.strip() != "null":
+        try:
+            update_obj = json.loads(webhook_payload)
+            updates = [update_obj] if isinstance(update_obj, dict) else []
+            print("[main_commands] Processing update received from repository_dispatch webhook.")
+        except Exception as e:
+            print(f"[main_commands] Failed to parse webhook payload: {e}")
+            updates = []
+    else:
+        # Fallback to polling: fetch updates with a short timeout
+        offset = last_id + 1 if last_id else None
+        print(f"[main_commands] Fetching updates from Telegram (offset={offset})...")
+        updates = get_updates(offset=offset, timeout=5)
     
     highest_id = last_id
     

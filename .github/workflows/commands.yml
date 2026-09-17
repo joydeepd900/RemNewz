@@ -5,6 +5,8 @@ name: "Commands Poller"
 
 on:
   workflow_dispatch:  # Allow manual triggering from the Actions UI
+  repository_dispatch:
+    types: [telegram-webhook]
   schedule:
     - cron: '*/5 * * * *'  # Every 5 minutes (GitHub Actions minimum)
 
@@ -42,6 +44,7 @@ jobs:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+          TELEGRAM_UPDATE_PAYLOAD: ${{ toJson(github.event.client_payload.update) }}
         run: python main_commands.py
 
       - name: Commit and push state changes
