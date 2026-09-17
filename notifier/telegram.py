@@ -244,3 +244,16 @@ def resolve_topic_id(topic_name: str):
         except Exception:
             pass
     return None
+
+def resolve_supergroup_id():
+    """Resolve configured supergroup chat ID from settings.json if bound."""
+    settings_path = os.path.join("data", "settings.json")
+    if os.path.exists(settings_path):
+        try:
+            with open(settings_path, "r", encoding="utf-8") as f:
+                settings = json.load(f)
+                return settings.get("supergroup_id")
+        except Exception:
+            pass
+    return None
+

@@ -24,9 +24,10 @@ Welcome to RemNewz. This guide details how to interact with your personal AI ass
 4. [Newzy: News Synthesis & Adaptive Feedback](#4-newzy-news-synthesis--adaptive-feedback)
    - [Delivery Schedule & Sources](#delivery-schedule--sources)
    - [Interactive Feedback](#interactive-feedback)
-5. [Telegram Supergroups & Forum Topic Routing](#5-telegram-supergroups--forum-topic-routing)
-   - [Why Use Supergroups with Topics?](#why-use-supergroups-with-topics)
-   - [Binding Topics via In-Chat Commands](#binding-topics-via-in-chat-commands)
+5. [Telegram Supergroups & Forum Topic Routing (Optional)](#5-telegram-supergroups--forum-topic-routing-optional)
+   - [Default Chat vs. Supergroups with Topics](#default-chat-vs-supergroups-with-topics)
+   - [Step-by-Step Supergroup Setup Guide](#step-by-step-supergroup-setup-guide)
+   - [What Happens in Regular Chats or Without Topics?](#what-happens-in-regular-chats-or-without-topics)
    - [Origin Thread Fallback Behavior](#origin-thread-fallback-behavior)
    - [Clearing Topic Bindings](#clearing-topic-bindings)
 6. [Operational Cadence: Public vs. Private Repositories](#6-operational-cadence-public-vs-private-repositories)
@@ -361,43 +362,75 @@ RemNewz records these preferences in `data/settings.json`. Over time, the rankin
 
 ---
 
-## 5. Telegram Supergroups & Forum Topic Routing
+## 5. Telegram Supergroups & Forum Topic Routing (Optional)
 
-RemNewz natively supports **Telegram Supergroups with Topics (Forums)** enabled. This allows you to separate news digests from personal task reminders.
+> **Important Note:** You do **not** need a Supergroup to use RemNewz! By default, RemNewz works out of the box in a standard **1-on-1 private chat** with your bot. All digests, tasks, commands, and reminders arrive in your direct message conversation without needing any topic setup.
 
-### Why Use Supergroups with Topics?
+Telegram Forum Supergroups are an **optional power-user feature** if you want to organize your bot into separate dedicated channels (like Discord or Slack channels)—for example, keeping noisy news digests in a `#News` topic while managing your personal to-dos in a `#Tasks` topic.
 
-- Direct high-volume news digests into a dedicated `#News` topic.
-- Direct deadline alerts and task management into a `#Tasks` topic.
-- Keep your main chat or general channel uncluttered.
+### Default Chat vs. Supergroups with Topics
 
-### Binding Topics via In-Chat Commands
+| Feature | Standard 1-on-1 Private Chat (Default) | Telegram Supergroup with Topics (Optional) |
+| --- | --- | --- |
+| **Setup Required** | **None.** Just message the bot directly. | Create a group, toggle "Topics", add bot as admin. |
+| **Digests & Tasks** | Everything arrives in your single DM chat. | News routes to `#News`, task alerts route to `#Tasks`. |
+| **Binding Commands** | Not needed. Running `/config bind_news` will say: *"Cannot bind: this is not a topic thread"*. | Run `/config bind_news` or `/config bind_tasks` inside the desired topic. |
 
-To bind a topic, simply navigate into the desired topic thread inside Telegram and run the binding command:
+---
 
-1. **Bind News Topic:**
-   - Navigate to your `#News` topic in Telegram.
-   - Send:
+### Step-by-Step Supergroup Setup Guide
+
+Because Telegram's security model prevents bots from creating groups or forum topics automatically, you set up the Supergroup manually in Telegram once:
+
+1. **Create a New Group:**
+   - In Telegram, tap the pencil/compose icon and select **New Group**.
+   - Name it whatever you like (e.g., *RemNewz Hub* or *Personal HQ*). You can be the only person in the group.
+2. **Enable Topics (Forums):**
+   - Open the group's profile $\to$ tap **Edit** (pencil icon).
+   - Scroll to **Topics** (or **Forum**) and toggle it **ON**. Telegram will convert the group into a Forum Supergroup.
+3. **Add Your Bot as an Admin:**
+   - In Group Settings $\to$ **Administrators** $\to$ **Add Admin**.
+   - Select your RemNewz bot and grant it permission to *Manage Topics* and *Send Messages*.
+4. **Create Your Forum Topics:**
+   - Go back into your group and tap **New Topic** (or the `+` button).
+   - Create a topic named **News** (or `#News`).
+   - Create another topic named **Tasks** (or `#Tasks`).
+5. **Bind the Topics to RemNewz:**
+   - Open your newly created **News** topic thread and send:
 
      ```text
      /config bind_news
      ```
 
-   - *Confirmation:* `Bound News digests to this topic.`
+     *Response:* `✅ Bound News digests to this topic.`
 
-2. **Bind Tasks Topic:**
-   - Navigate to your `#Tasks` topic in Telegram.
-   - Send:
+   - Open your newly created **Tasks** topic thread and send:
 
      ```text
      /config bind_tasks
      ```
 
-   - *Confirmation:* `Bound Task alerts to this topic.`
+     *Response:* `✅ Bound Task alerts to this topic.`
 
-#### Alternative: Explicit Topic ID Binding
+That's it! Your twice-daily news digests will now post exclusively into `#News`, and your task due alerts will notify you in `#Tasks`.
 
-If you know your topic's numeric `message_thread_id`:
+---
+
+### What Happens in Regular Chats or Without Topics?
+
+If you send `/config bind_news` or `/config bind_tasks` in a standard private chat, a basic group chat without topics, or the General thread:
+
+- The bot detects that there is no `message_thread_id` and replies:
+
+  ```text
+  ❌ Cannot bind: this is not a topic thread.
+  ```
+
+- All regular commands (`/todo`, `/list`, `/done`, `/config`, etc.) continue to work normally anywhere.
+
+#### Alternative: Explicit Numeric Topic ID Binding
+
+If you already know your topic's numeric `message_thread_id`:
 
 ```text
 /config set_topic_news 104
@@ -408,7 +441,7 @@ If you know your topic's numeric `message_thread_id`:
 
 ### Origin Thread Fallback Behavior
 
-If you do **not** bind a dedicated `#Tasks` topic:
+If you use a Supergroup with Topics but choose **not** to bind a dedicated `#Tasks` topic:
 
 - When you run `/todo` inside any topic thread, Remzy automatically remembers that thread's ID (`origin_thread_id`).
 - When that task becomes due, Remzy sends the due notification directly back into the exact thread where it was created.

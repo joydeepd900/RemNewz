@@ -85,10 +85,12 @@ def main():
             if "message" in update:
                 msg = update["message"]
                 chat_id = str(msg.get("chat", {}).get("id", ""))
+                from_id = str(msg.get("from", {}).get("id", ""))
                 
-                # Security Allowlist Check
-                if chat_id != allowed_chat_id:
-                    print(f"[main_commands] Blocked unauthorized message from chat {chat_id}")
+                # Security Allowlist Check:
+                # Allow if message is in authorized chat OR sent by the authorized user (e.g. in a Supergroup)
+                if chat_id != allowed_chat_id and from_id != allowed_chat_id:
+                    print(f"[main_commands] Blocked unauthorized message from user {from_id} in chat {chat_id}")
                     continue
                     
                 text = msg.get("text", "")
@@ -96,24 +98,25 @@ def main():
                 
                 if text.startswith("/"):
                     # Try Helpzy first, then Remzy
-                    if not helpzy.handle_command(text, message_thread_id=message_thread_id):
-                        if not remzy.handle_command(text, ai_provider, ai_model, user_tz, message_thread_id=message_thread_id):
+                    if not helpzy.handle_command(text, message_thread_id=message_thread_id, chat_id=chat_id):
+                        if not remzy.handle_command(text, ai_provider, ai_model, user_tz, message_thread_id=message_thread_id, chat_id=chat_id):
                             pass # Ignore unknown commands
                             
             # Handle Callback Queries (Inline Buttons)
             elif "callback_query" in update:
                 cb = update["callback_query"]
                 chat_id = str(cb.get("message", {}).get("chat", {}).get("id", ""))
+                from_id = str(cb.get("from", {}).get("id", ""))
                 message_thread_id = cb.get("message", {}).get("message_thread_id")
                 
-                if chat_id != allowed_chat_id:
+                if chat_id != allowed_chat_id and from_id != allowed_chat_id:
                     continue
                     
                 data = cb.get("data", "")
                 query_id = cb.get("id")
                 
                 if data == "remind_me":
-                    remzy.handle_remind_me(data, message_thread_id=message_thread_id)
+                    remzy.handle_remind_me(data, message_thread_id=message_thread_id, chat_id=chat_id)
                     answer_callback_query(query_id, "Task Created!")
                 elif data.startswith("like_"):
                     helpzy.handle_feedback(data, 1)

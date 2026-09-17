@@ -23,7 +23,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from engine.time_utils import now_local, format_datetime
-from notifier.telegram import send_message, build_inline_keyboard, resolve_topic_id
+from notifier.telegram import send_message, build_inline_keyboard, resolve_topic_id, resolve_supergroup_id
 from fetchers.github_repos import fetch_github_repos
 from fetchers.rss_hn import fetch_rss_feeds
 from engine.dedup import DedupManager
@@ -94,7 +94,9 @@ def main():
         
         print(f"[main_digest] Sending to Telegram: {item['title']}...")
         news_topic_id = resolve_topic_id("news")
-        responses = send_message(msg_text, reply_markup=reply_markup, message_thread_id=news_topic_id)
+        supergroup_id = resolve_supergroup_id()
+        target_chat = supergroup_id if (supergroup_id and news_topic_id is not None) else None
+        responses = send_message(msg_text, reply_markup=reply_markup, chat_id=target_chat, message_thread_id=news_topic_id)
         
         # Check if successful
         if responses and responses[-1].get("ok"):
