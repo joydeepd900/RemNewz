@@ -3,6 +3,13 @@
     "id": "test-123",
     "title": "Test Due Notification",
     "due_at": "2026-09-17T00:00:00+00:00",
+    "reminded_due": true
+  },
+  {
+    "id": "2f88d818",
+    "title": "Remind me to review the architecture doc  at 5pm",
+    "due_at": "2026-09-18T06:25:35.873902+00:00",
+    "priority": "normal",
     "reminded_due": false
   }
 ]
