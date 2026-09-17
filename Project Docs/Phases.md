@@ -66,7 +66,7 @@ This roadmap divides the build into modular, verifiable phases. Each phase concl
   - Build `personas/helpzy.py` settings dispatcher:
     - Commands: `/config`, `/config add_topic`, `/config remove_topic`, `/config set_tz`, `/config set_style`, `/help`.
     - Persist overrides to `data/settings.json`.
-  - Create `commands.yml` workflow running on a **35-minute schedule** (`0,35 * * * *`) for private repos (or 3–5 min for public repos).
+  - Create `commands.yml` workflow running on a **2-3 minute schedule** (`*/2 * * * *`) as the repo is public.
   - Add GitHub Actions `concurrency: git-state-storage` and `git pull --rebase` retry loop ensuring all actions during the window produce **at most one consolidated commit**.
 - **Verification Milestone:**
   - Tap `[ 📌 Remind Me ]` on a news item $\to$ confirm it appears in `/list`.

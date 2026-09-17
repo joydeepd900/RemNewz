@@ -1,12 +1,13 @@
 """
 main_digest.py — Entrypoint for the Newzy digest workflow.
 
-Phase 0:  Sends a formatted test message to verify the full pipeline.
-Phase 1+: Fetches news, synthesizes with AI, and sends the digest.
+Phase 1: Fetches news from GitHub and RSS, dedups, synthesizes with AI, 
+and sends individual items as digest messages to Telegram.
 """
 
 import os
 import sys
+import yaml
 
 # Fix Windows console encoding for emoji in print statements
 if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
@@ -18,57 +19,92 @@ if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
 
 from dotenv import load_dotenv
 
-# Load .env for local development (GitHub Actions uses secrets instead)
+# Load .env for local development
 load_dotenv()
 
 from engine.time_utils import now_local, format_datetime
-from notifier.telegram import send_message
+from notifier.telegram import send_message, build_inline_keyboard
+from fetchers.github_repos import fetch_github_repos
+from fetchers.rss_hn import fetch_rss_feeds
+from engine.dedup import DedupManager
+from engine.ai_client import synthesize_item
 
-
-def build_test_message():
-    """Build a formatted HTML test message for Phase 0 verification."""
-    now = now_local()
-    timestamp = format_datetime(now, style="full")
-
-    ai_provider = os.environ.get("AI_PROVIDER", "none")
-    ai_model = os.environ.get("AI_MODEL", "not configured")
-    timezone = os.environ.get("TIMEZONE", "UTC")
-
-    message = (
-        "\U0001f9ea <b>RemNewz \u2014 Phase 0 Infrastructure Test</b>\n"
-        "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\n"
-        f"\u2705 <b>Telegram delivery:</b> Working\n"
-        f"\U0001f550 <b>Local time:</b> {timestamp}\n"
-        f"\U0001f30d <b>Timezone:</b> {timezone}\n"
-        f"\U0001f916 <b>AI Provider:</b> {ai_provider}\n"
-        f"\U0001f9e0 <b>AI Model:</b> {ai_model}\n\n"
-        "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n"
-        "\U0001f4e1 <i>Pipeline verified. Ready for Phase 1.</i>"
-    )
-    return message
-
+def load_config() -> dict:
+    """Load configuration from config.yml or config.example.yml."""
+    if os.path.exists("config.yml"):
+        path = "config.yml"
+    elif os.path.exists("config.example.yml"):
+        path = "config.example.yml"
+    else:
+        print("[main_digest] Warning: No config file found. Using defaults.")
+        return {}
+        
+    with open(path, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f) or {}
 
 def main():
-    """Main entrypoint for the digest workflow."""
-    print("[main_digest] Starting RemNewz digest pipeline...")
-    print("[main_digest] Mode: Phase 0 -- Infrastructure Test")
-
-    try:
-        message = build_test_message()
-        print("[main_digest] Sending test message to Telegram...")
-        responses = send_message(message)
-
-        if responses and responses[0].get("ok"):
-            print("[main_digest] OK - Test message sent successfully!")
-            return 0
+    print("[main_digest] Starting RemNewz digest pipeline (Phase 1)...")
+    
+    config = load_config()
+    dedup = DedupManager()
+    
+    ai_provider = os.environ.get("AI_PROVIDER", "none")
+    ai_model = os.environ.get("AI_MODEL", "")
+    digest_style = config.get("digest_style", "concise")
+    
+    # 1. Fetch items
+    print("[main_digest] Fetching items from sources...")
+    all_items = []
+    all_items.extend(fetch_github_repos(config))
+    all_items.extend(fetch_rss_feeds(config))
+    
+    # 2. Dedup and limit
+    unseen_items = []
+    for item in all_items:
+        if not dedup.is_seen(item["id"]):
+            unseen_items.append(item)
+            
+    # Optional: limit the number of items per digest to avoid spamming
+    max_digest_items = 5
+    items_to_process = unseen_items[:max_digest_items]
+    
+    print(f"[main_digest] Found {len(all_items)} total items, {len(unseen_items)} unseen. Processing top {len(items_to_process)}.")
+    
+    if not items_to_process:
+        print("[main_digest] No new items to send. Exiting.")
+        dedup.prune()
+        return 0
+        
+    # 3. Process and send each item
+    for item in items_to_process:
+        print(f"[main_digest] Synthesizing: {item['title']}...")
+        
+        # Synthesize text
+        msg_text = synthesize_item(item, digest_style, ai_provider, ai_model)
+        
+        # Build interactive buttons
+        # Callback data max size is 64 bytes. For now we use placeholder actions.
+        # In Phase 3, we might need a short hash to map to the actual item URL.
+        # But we can store the url directly if it's short, or we just put standard commands.
+        reply_markup = build_inline_keyboard([[
+            {"text": "📌 Remind Me", "callback_data": f"remind_me"},
+            {"text": "👍", "callback_data": f"like_topic"},
+            {"text": "👎", "callback_data": f"dislike_topic"}
+        ]])
+        
+        print(f"[main_digest] Sending to Telegram: {item['title']}...")
+        responses = send_message(msg_text, reply_markup=reply_markup)
+        
+        # Check if successful
+        if responses and responses[-1].get("ok"):
+            dedup.mark_seen(item["id"])
         else:
-            print(f"[main_digest] FAIL - Message send failed: {responses}")
-            return 1
-
-    except Exception as e:
-        print(f"[main_digest] FAIL - Fatal error: {e}")
-        return 1
-
+            print(f"[main_digest] Failed to send {item['title']}: {responses}")
+            
+    # 4. Cleanup
+    dedup.prune()
+    print("[main_digest] Digest pipeline complete.")
+    return 0
 
 if __name__ == "__main__":
     sys.exit(main())

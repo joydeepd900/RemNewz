@@ -6,7 +6,9 @@ name: "Newzy Digest"
 
 on:
   workflow_dispatch:
-    # Manual trigger via GitHub UI or API — used for Phase 0 testing.
+    # Manual trigger via GitHub UI or API
+  schedule:
+    - cron: '30 2,14 * * *'  # 8:00 AM & 8:00 PM IST (UTC+5:30)
 
 # Prevent concurrent runs from colliding on git state
 concurrency:
@@ -17,6 +19,8 @@ jobs:
   send-digest:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout repository
@@ -32,6 +36,7 @@ jobs:
 
       - name: Run digest pipeline
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           AI_PROVIDER: ${{ secrets.AI_PROVIDER }}
@@ -41,3 +46,14 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           TIMEZONE: ${{ secrets.TIMEZONE }}
         run: python main_digest.py
+
+      - name: Commit and push seen items
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/seen.json
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(sync): update seen items [skip ci]"
+            git pull --rebase origin main
+            git push origin main
+          fi
