@@ -16,6 +16,13 @@ topics:
 # Common options: "sarcastic", "bulleted", "professional", "ELI5"
 digest_style: "sarcastic"
 
+# Telegram Supergroup Topic Routing (Phase 5)
+# If RemNewz is in a Telegram Forum supergroup, you can route messages to specific topics.
+# Use the Helpzy commands `/config bind_news` or `/config bind_tasks` within a topic 
+# to dynamically set these in data/settings.json, or hardcode them here.
+# topic_news: 2
+# topic_tasks: 4
+
 # Public vs Private Repository Notes:
 # If you are running RemNewz in a PUBLIC repository:
 # - GitHub Actions minutes are free and unlimited.

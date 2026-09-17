@@ -1,7 +1,7 @@
 # PRD — RemNewz: Personal AI Intelligence & Reminders Suite
 
 **Product:** RemNewz  
-**Status:** Planning & Specification Overhaul (Pre-Phase 0)  
+**Status:** Phase 5 Complete (Supergroup Topic Routing & Webhook Dispatch Implemented)  
 **Distribution Model:** Open-Source GitHub Template Repository (Self-Hostable at $0 Cost)  
 **Related Docs:** [Architecture.md](./Architecture.md) · [Rules.md](./Rules.md) · [Phases.md](./Phases.md)
 
@@ -25,6 +25,7 @@ RemNewz operates as a single Telegram bot presenting three specialized personas 
    - Synthesizes findings using AI into personalized formats (*"What it is"*, *"Why it matters"*, *"Who should care"*).
    - Equips every digest item with an interactive `[ 📌 Remind Me ]` inline button and feedback controls (`[ 👍 ]`, `[ 👎 ]`).
    - Adapts to user interests dynamically over time.
+   - Routes digests into a dedicated `#News` topic in Supergroups when configured.
    - Signs off as *Newzy Digest*.
 
 2. ⏰ **Remzy (The NLP Task & Reminder Specialist):**
@@ -32,11 +33,12 @@ RemNewz operates as a single Telegram bot presenting three specialized personas 
    - Handles task lifecycle: creation, listing, completion (`/done`), and archiving.
    - Delivers proactive, non-spammy due alerts and overdue nudges.
    - Converts news items tapped via Newzy's inline buttons into structured tasks.
+   - Remembers the `origin_thread_id` of tasks created inside Supergroup topics, ensuring reminders reply in context if a dedicated `#Tasks` topic is not bound.
    - Signs off as *Remzy*.
 
 3. ⚙️ **Helpzy (The In-Chat Configuration Specialist):**
    - Allows users to customize settings directly within Telegram without editing code or committing files manually.
-   - Commands: `/config`, `/config add_topic`, `/config remove_topic`, `/config add_feed`, `/config set_tz`, `/config set_style`, `/help`.
+   - Commands: `/config`, `/config add_topic`, `/config remove_topic`, `/config add_feed`, `/config set_tz`, `/config set_style`, `/config bind_news`, `/config bind_tasks`, `/config clear_topics`, `/help`.
    - Persists dynamic overrides to git automatically.
    - Signs off as *Helpzy*.
 
@@ -102,6 +104,8 @@ RemNewz operates as a single Telegram bot presenting three specialized personas 
   - *Public Repo Mode:* Runs `commands.yml` at high frequency (every **3–5 minutes**) with unlimited free Actions minutes.
   - *Private Repo Mode:* Runs `commands.yml` at **35-minute intervals** (`0,35 * * * *`) to stay within the 2,000 monthly free Actions minutes limit.
 - **FR19 — Concurrency & Push Resilience:** Use GitHub Actions concurrency groups and a `git pull --rebase` retry loop to prevent push conflicts between workflows.
+- **FR20 — Supergroup Topic Routing & Thread Retention:** Support Telegram Forum Supergroups by routing Newzy digests to `topic_news` and Remzy task alerts to `topic_tasks`. For tasks created in unbound topics, preserve `origin_thread_id` to direct deadline alerts back into the context thread.
+- **FR21 — Event-Driven Webhook Dispatch Option:** Support optional zero-polling instant execution via Cloudflare Worker webhook proxy, passing payloads via `repository_dispatch` (`TELEGRAM_UPDATE_PAYLOAD`).
 
 ---
 

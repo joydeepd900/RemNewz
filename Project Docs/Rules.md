@@ -36,6 +36,7 @@ Read this before writing code or making architectural adjustments. These rules a
 - **Overdue Nudge Cadence:** If a task remains overdue, subsequent nudges must enforce a minimum **24-hour snooze gap** (`now - last_overdue_nudge >= 24h`). Never nudge on every cron cycle.
 - **HTML Parse Mode:** Standardize exclusively on Telegram HTML parse mode (`<b>`, `<i>`, `<a>`, `<code>`). MarkdownV2 is strictly prohibited for external feeds due to fragile character escaping.
 - **4KB Chunking:** Any Telegram payload exceeding 4,000 characters must be split at paragraph boundaries to comply with Telegram's 4,096-character API ceiling.
+- **Topic Routing & Thread Preservation:** When operating in Telegram Forum Supergroups, all outgoing messages and alerts must propagate `message_thread_id`. Command responses reply directly to the incoming thread. Proactive news digests route to `topic_news`, while task alerts route to `topic_tasks` (falling back to `origin_thread_id`). If unbound or in private chats, `message_thread_id` defaults safely to `None`.
 
 ---
 

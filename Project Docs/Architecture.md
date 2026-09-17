@@ -24,7 +24,8 @@ graph TD
         ROUTER -->|Feedback [👍] [👎]| NEWZY_LEARN[Feed Preference Learning]
         ROUTER -->|/config Settings| HELPZY[Persona: Helpzy Config]
         REMZY -->|Check Deadlines| CHECKER[Due & Overdue Checker]
-        CHECKER -->|Smart Nudge| TG
+        CHECKER -->|Smart Nudge to Origin Topic| TG
+        NEWZY -->|Route to #News Topic| TG
         
         REMZY -->|Mutate| STORE[Storage Subsystem<br/>Plain JSON or Fernet Encrypted]
         HELPZY -->|Mutate| SETTINGS[data/settings.json]
@@ -108,7 +109,15 @@ remnewz/
   - Tapping feedback records tag weights in `data/settings.json` (`preferred_tags`, `suppressed_tags`).
   - Future candidate ranking boosts preferred tags and filters out suppressed tags before sending to the AI synthesis step.
 
-### 4.2 Storage & Privacy Subsystem
+### 4.2 Supergroup Topic Routing & Thread Retention (Phase 5)
+
+When RemNewz is used in a Telegram Supergroup with Topics (Forums) enabled, users can organize and isolate message streams:
+- **News Topic (`topic_news`):** Bound via `/config bind_news` (inside the desired topic) or `/config set_topic_news <id>`. All twice-daily Newzy digests are routed to this thread ID.
+- **Tasks Topic (`topic_tasks`):** Bound via `/config bind_tasks` (inside the desired topic) or `/config set_topic_tasks <id>`. Proactive due alerts and overdue nudges flow into this designated thread.
+- **Origin Thread Retention:** When `/todo` is called within an unbound topic thread, Remzy stores `origin_thread_id` inside the task object. If no global `topic_tasks` is bound, Remzy delivers due notifications directly back into that specific origin thread, keeping conversation context intact.
+- **Unbound/1-on-1 Fallback:** If topic routing is not used or cleared via `/config clear_topics`, `message_thread_id` resolves to `None`, directing messages to standard 1-on-1 chat or the supergroup General channel.
+
+### 4.3 Storage & Privacy Subsystem
 
 Phases 0–3 use **plain JSON** for simplicity, debuggability, and fast iteration. Encryption is added in Phase 4 once there is real data worth protecting.
 
@@ -120,9 +129,9 @@ Phases 0–3 use **plain JSON** for simplicity, debuggability, and fast iteratio
    - Standardized across both public and private repos.
 3. **Repository Mode Cadence Toggle:**
    - *Public Repositories:* Unlimited Actions minutes allow high-frequency polling (**every 3–5 minutes**).
-   - *Private Repositories:* Scheduled at **35-minute intervals** (`0,35 * * * *`) to stay within the 2,000 monthly free minutes quota.
+   - *Private Repositories:* Scheduled at **35-minute intervals** (`0,35 * * * *`) to stay within the 2,000 monthly free minutes quota, or switched to instantaneous Webhook Mode.
 
-### 4.3 Git Concurrency & Conflict Prevention
+### 4.4 Git Concurrency & Conflict Prevention
 Because `digest.yml` and `commands.yml` run independently, simultaneous runs could cause git push rejections. RemNewz mitigates this through two layers:
 1. **Repository Concurrency Group:**
    ```yaml
@@ -138,6 +147,32 @@ Because `digest.yml` and `commands.yml` run independently, simultaneous runs cou
    git push origin main
    ```
    with exponential backoff (up to 3 retries).
+
+### 4.5 Cloudflare Worker Webhook Dispatch (Instantaneous Webhook Architecture)
+
+For users running on private repositories who want immediate command processing without exhausting GitHub Actions minutes, RemNewz supports an event-driven webhook pipeline:
+
+```mermaid
+sequenceDiagram
+    actor User as User on Phone
+    participant TG as Telegram Bot API
+    participant CF as Cloudflare Worker (Edge)
+    participant GH as GitHub Actions (commands.yml)
+    participant Git as Git Repo (main)
+
+    User->>TG: /todo Review PR by 5pm
+    TG->>CF: POST Webhook (JSON Update)
+    CF->>CF: Validate Telegram Secret Token
+    CF->>GH: POST repository_dispatch ("telegram-webhook", payload=update)
+    GH->>GH: commands.yml runs immediately
+    GH->>GH: main_commands.py parses TELEGRAM_UPDATE_PAYLOAD
+    GH->>TG: sendMessage (Task confirmation)
+    GH->>Git: Push encrypted state (if modified)
+```
+
+- **Zero Idle Runner Waste:** Runners only spin up when a message is actually sent.
+- **Fast Execution:** Sub-second dispatch from Cloudflare to GitHub runner.
+- **Dual Compatibility:** `main_commands.py` automatically checks for `TELEGRAM_UPDATE_PAYLOAD`; if absent, it falls back seamlessly to long-polling `getUpdates`.
 
 ---
 

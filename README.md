@@ -16,6 +16,7 @@ It also functions as a full Natural Language Processing (NLP) Task Manager. Simp
 - **Multi-Provider AI Synthesis:** Pluggable support for Gemini, Groq, or OpenRouter (with built-in fallback mechanisms).
 - **NLP Task Management:** Includes a personal assistant interface that understands natural language deadlines.
 - **Intelligent Due Checker:** Reminds you of pending tasks without overwhelming your inbox.
+- **Supergroup Topic Routing:** Natively supports Telegram Forum Supergroups to route news digests and task alerts into dedicated topics.
 - **Privacy First (Encryption at Rest):** Automatically encrypts your tasks and settings into `.enc` files before pushing to GitHub. This allows you to securely use a free Public Repository without exposing personal data.
 
 ## 1-Click Setup Guide
@@ -58,18 +59,25 @@ Navigate to your repository **Settings > Secrets and variables > Actions** and a
 
 1. Navigate to the **Actions** tab in your repository.
 2. Accept the prompt to enable workflows.
-3. Click on **Commands Poller**, then select **Run workflow**. 
+3. Click on **Commands Poller**, then select **Run workflow**.
 4. Go to Telegram and type `/help`. RemNewz is now active and ready to assist.
 
-## Commands
+## Commands and User Guide
 
-- `/todo <description>` - Create an NLP task.
+RemNewz features three built-in personas: **Remzy** (Tasks), **Helpzy** (Configuration), and **Newzy** (News).
+
+- `/todo <description>` - Create an NLP task with parsed deadlines and priorities.
 - `/list` - View active tasks.
-- `/done <id>` - Mark a task complete.
-- `/config` - View and manage dynamic settings (e.g., topics, timezone, summary style).
+- `/done <id>` - Mark a task complete and archive it.
+- `/remove <id>` - Permanently delete a task.
+- `/history` - View recently completed tasks.
+- `/config` - View and manage dynamic settings (timezone, style, topics, forum routing).
+- `/help` - Display command summary.
+
+For a full reference of commands, natural language examples, and Supergroup topic routing instructions, see the [RemNewz User Guide](docs/user_guide.md).
 
 ## Advanced Configuration: Private Repositories & Webhooks
 
-If you are running a Private repository and require instantaneous chat replies without depleting your Action minutes, it is recommended to disable `commands.yml` and deploy a Cloudflare Worker. This worker acts as a webhook proxy, triggering a lightweight GitHub `repository_dispatch` event only when a message is received.
+If you are running a Private repository and require instantaneous chat replies without depleting your Action minutes, it is recommended to deploy a Cloudflare Worker. This worker acts as a webhook proxy, triggering a lightweight GitHub `repository_dispatch` event only when a message is received.
 
 For complete, step-by-step setup instructions, see the [Cloudflare Worker Webhook Proxy Guide](docs/cloudflare_worker_guide.md).

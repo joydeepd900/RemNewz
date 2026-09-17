@@ -92,16 +92,19 @@ def main():
                     continue
                     
                 text = msg.get("text", "")
+                message_thread_id = msg.get("message_thread_id")
+                
                 if text.startswith("/"):
                     # Try Helpzy first, then Remzy
-                    if not helpzy.handle_command(text):
-                        if not remzy.handle_command(text, ai_provider, ai_model, user_tz):
+                    if not helpzy.handle_command(text, message_thread_id=message_thread_id):
+                        if not remzy.handle_command(text, ai_provider, ai_model, user_tz, message_thread_id=message_thread_id):
                             pass # Ignore unknown commands
                             
             # Handle Callback Queries (Inline Buttons)
             elif "callback_query" in update:
                 cb = update["callback_query"]
                 chat_id = str(cb.get("message", {}).get("chat", {}).get("id", ""))
+                message_thread_id = cb.get("message", {}).get("message_thread_id")
                 
                 if chat_id != allowed_chat_id:
                     continue
@@ -110,7 +113,7 @@ def main():
                 query_id = cb.get("id")
                 
                 if data == "remind_me":
-                    remzy.handle_remind_me(data)
+                    remzy.handle_remind_me(data, message_thread_id=message_thread_id)
                     answer_callback_query(query_id, "Task Created!")
                 elif data.startswith("like_"):
                     helpzy.handle_feedback(data, 1)

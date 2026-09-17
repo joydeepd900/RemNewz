@@ -88,7 +88,7 @@ def _chunk_message(text, max_length=MAX_MESSAGE_LENGTH):
     return chunks
 
 
-def send_message(text, parse_mode="HTML", reply_markup=None, disable_preview=True):
+def send_message(text, parse_mode="HTML", reply_markup=None, disable_preview=True, chat_id=None, message_thread_id=None):
     """Send a message to the configured Telegram chat, with auto-chunking.
 
     Args:
@@ -96,6 +96,8 @@ def send_message(text, parse_mode="HTML", reply_markup=None, disable_preview=Tru
         parse_mode: Telegram parse mode ('HTML' or 'MarkdownV2').
         reply_markup: Optional dict for inline keyboard markup.
         disable_preview: Whether to disable link previews.
+        chat_id: Optional chat ID. If None, uses default from env.
+        message_thread_id: Optional message_thread_id for forum topics.
 
     Returns:
         List of API response dicts (one per chunk).
@@ -103,17 +105,20 @@ def send_message(text, parse_mode="HTML", reply_markup=None, disable_preview=Tru
     Raises:
         requests.HTTPError: If all retries fail.
     """
-    chat_id = _get_chat_id()
+    target_chat_id = chat_id if chat_id else _get_chat_id()
     chunks = _chunk_message(text)
     responses = []
 
     for i, chunk in enumerate(chunks):
         payload = {
-            "chat_id": chat_id,
+            "chat_id": target_chat_id,
             "text": chunk,
             "parse_mode": parse_mode,
             "disable_web_page_preview": disable_preview,
         }
+        
+        if message_thread_id is not None:
+            payload["message_thread_id"] = message_thread_id
 
         # Only attach inline keyboard to the last chunk
         if reply_markup and i == len(chunks) - 1:
@@ -227,3 +232,15 @@ def answer_callback_query(callback_query_id, text=None):
         requests.post(url, json=payload, timeout=10)
     except requests.exceptions.RequestException as e:
         print(f"[telegram] answerCallbackQuery failed: {e}")
+
+def resolve_topic_id(topic_name: str):
+    """Resolve a logical topic name (e.g. 'news', 'tasks') to a Telegram message_thread_id."""
+    settings_path = os.path.join("data", "settings.json")
+    if os.path.exists(settings_path):
+        try:
+            with open(settings_path, "r", encoding="utf-8") as f:
+                settings = json.load(f)
+                return settings.get(f"topic_{topic_name}")
+        except Exception:
+            pass
+    return None

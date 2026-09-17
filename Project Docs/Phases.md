@@ -95,11 +95,28 @@ This roadmap divides the build into modular, verifiable phases. Each phase concl
 
 ---
 
-## Phase 5 — Optional & Stretch Expansions
-**Goal:** Advanced capabilities to explore once the core system is rock solid.
+## Phase 5 — Telegram Supergroups & Webhook Architecture (Completed)
+
+**Goal:** Enable seamless Telegram Forum Supergroup topic routing and zero-polling webhook execution.
+
+- **Tasks:**
+  - Add `message_thread_id` and `resolve_topic_id` routing to `notifier/telegram.py`.
+  - Update `main_digest.py` to dispatch digests to `topic_news` when bound.
+  - Update `personas/remzy.py` to store `origin_thread_id` on tasks and route due alerts to `topic_tasks` (or origin thread fallback).
+  - Update `personas/helpzy.py` with topic commands (`/config bind_news`, `/config bind_tasks`, `/config set_topic_news <id>`, `/config set_topic_tasks <id>`, `/config clear_topics`).
+  - Implement Cloudflare Worker webhook proxy ingestion in `main_commands.py` and `.github/workflows/commands.yml` (`TELEGRAM_UPDATE_PAYLOAD`).
+  - Add unit test suite `tests/test_supergroups.py` validating topic routing, settings persistence, and origin thread fallback.
+- **Verification Milestone:**
+  - Verified topic routing and origin fallback in automated tests (`pytest tests/test_supergroups.py`).
+  - Verified command loop processes single update payloads from webhook dispatches.
+
+---
+
+## Phase 6 — Future Stretch Expansions
+
+**Goal:** Advanced ecosystem and intelligence enhancements.
 
 - **Ideas:**
   - Additional ingestion sources: ArXiv AI papers, Reddit (`r/LocalLLaMA`, `r/MachineLearning`), Product Hunt.
-  - Weekly executive review digest delivered on Sunday mornings.
-  - Telegram Supergroup topic routing (posting news to `#News` and tasks to `#Tasks`).
+  - Weekly executive review digest delivered on Sunday mornings summarizing major trends.
   - SQLite backend migration if active task count exceeds hundreds of items.
