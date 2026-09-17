@@ -4,8 +4,9 @@
 name: "Commands Poller"
 
 on:
+  workflow_dispatch:  # Allow manual triggering from the Actions UI
   schedule:
-    - cron: '*/2 * * * *'  # Every 2 minutes for public repositories
+    - cron: '*/5 * * * *'  # Every 5 minutes (GitHub Actions minimum)
 
 # Prevent concurrent runs from colliding on git state
 concurrency:
