@@ -7,8 +7,11 @@ import urllib.error
 # Add parent directory to path so we can import from dotenv if needed
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from dotenv import load_dotenv
-load_dotenv()
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 if not TOKEN:
@@ -35,7 +38,7 @@ SCOPES = [
 ]
 
 def register_commands():
-    print(f"Registering commands for bot...")
+    print("Registering commands for bot...")
     
     success = True
     for scope in SCOPES:
