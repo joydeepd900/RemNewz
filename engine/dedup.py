@@ -1,36 +1,25 @@
 import os
 import json
 from datetime import datetime, timedelta, timezone
+from engine.store import load_data, save_data
 
-DATA_DIR = "data"
-SEEN_FILE = os.path.join(DATA_DIR, "seen.json")
 MAX_ITEMS = 1000
 RETENTION_DAYS = 14
 
 class DedupManager:
-    def __init__(self, file_path=SEEN_FILE):
-        self.file_path = file_path
+    def __init__(self):
         self.seen_items = {}
         self._load()
 
     def _load(self):
         """Load seen items from the JSON file."""
-        if not os.path.exists(DATA_DIR):
-            os.makedirs(DATA_DIR, exist_ok=True)
-            
-        if os.path.exists(self.file_path):
-            try:
-                with open(self.file_path, "r", encoding="utf-8") as f:
-                    self.seen_items = json.load(f)
-            except (json.JSONDecodeError, IOError):
-                self.seen_items = {}
+        self.seen_items = load_data("seen", {})
 
     def _save(self):
         """Save seen items to the JSON file."""
         try:
-            with open(self.file_path, "w", encoding="utf-8") as f:
-                json.dump(self.seen_items, f, indent=2)
-        except IOError as e:
+            save_data("seen", self.seen_items)
+        except Exception as e:
             print(f"[dedup] Failed to save seen items: {e}")
 
     def is_seen(self, item_id: str) -> bool:

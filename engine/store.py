@@ -10,6 +10,62 @@ TODOS_FILE_ENC = os.path.join(DATA_DIR, "todos.enc")
 ARCHIVE_FILE_ENC = os.path.join(DATA_DIR, "archive_todos.enc")
 MAX_ARCHIVE_ITEMS = 50
 
+def _atomic_write_file(file_path, data, is_binary=False):
+    tmp_path = file_path + ".tmp"
+    mode = "wb" if is_binary else "w"
+    encoding = None if is_binary else "utf-8"
+    
+    with open(tmp_path, mode, encoding=encoding) as f:
+        if is_binary:
+            f.write(data)
+        else:
+            json.dump(data, f, indent=2)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp_path, file_path)
+
+def load_data(filename_base, default_val):
+    crypto = CryptoManager()
+    path_enc = os.path.join(DATA_DIR, f"{filename_base}.enc")
+    path_plain = os.path.join(DATA_DIR, f"{filename_base}.json")
+    
+    if crypto.is_enabled and os.path.exists(path_enc):
+        try:
+            with open(path_enc, "rb") as f:
+                return crypto.decrypt_dict(f.read())
+        except DecryptionError as e:
+            print(f"[store] FATAL decrypting {filename_base}: {e}")
+            raise
+            
+    if os.path.exists(path_plain):
+        try:
+            with open(path_plain, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            return default_val
+            
+    return default_val
+
+def save_data(filename_base, data):
+    crypto = CryptoManager()
+    path_enc = os.path.join(DATA_DIR, f"{filename_base}.enc")
+    path_plain = os.path.join(DATA_DIR, f"{filename_base}.json")
+    
+    if not os.path.exists(DATA_DIR):
+        os.makedirs(DATA_DIR, exist_ok=True)
+    
+    if crypto.is_enabled:
+        cipher = crypto.encrypt_dict(data)
+        _atomic_write_file(path_enc, cipher, is_binary=True)
+        if os.path.exists(path_plain):
+            try:
+                os.remove(path_plain)
+            except Exception:
+                pass
+    else:
+        _atomic_write_file(path_plain, data, is_binary=False)
+
+
 class TaskStore:
     def __init__(self, 
                  todos_path=TODOS_FILE, 
@@ -58,19 +114,6 @@ class TaskStore:
             print(f"[store] FATAL: {e}")
             raise
 
-    def _atomic_write(self, file_path, data, is_binary=False):
-        tmp_path = file_path + ".tmp"
-        mode = "wb" if is_binary else "w"
-        encoding = None if is_binary else "utf-8"
-        
-        with open(tmp_path, mode, encoding=encoding) as f:
-            if is_binary:
-                f.write(data)
-            else:
-                json.dump(data, f, indent=2)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp_path, file_path)
 
     def save(self):
         if self.load_failed:
@@ -81,8 +124,8 @@ class TaskStore:
                 todos_cipher = self.crypto.encrypt_dict(self.todos)
                 archive_cipher = self.crypto.encrypt_dict(self.archive)
                 
-                self._atomic_write(self.todos_path_enc, todos_cipher, is_binary=True)
-                self._atomic_write(self.archive_path_enc, archive_cipher, is_binary=True)
+                _atomic_write_file(self.todos_path_enc, todos_cipher, is_binary=True)
+                _atomic_write_file(self.archive_path_enc, archive_cipher, is_binary=True)
                 
                 # Verified Migration cleanup: only remove plaintext if we can decrypt back
                 try:
@@ -96,8 +139,8 @@ class TaskStore:
                 except DecryptionError as e:
                     print(f"[store] Integrity check failed post-encryption. Retaining plaintext. ({e})")
             else:
-                self._atomic_write(self.todos_path, self.todos, is_binary=False)
-                self._atomic_write(self.archive_path, self.archive, is_binary=False)
+                _atomic_write_file(self.todos_path, self.todos, is_binary=False)
+                _atomic_write_file(self.archive_path, self.archive, is_binary=False)
         except IOError as e:
             print(f"[store] Failed to save tasks: {e}")
 

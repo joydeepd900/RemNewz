@@ -8,6 +8,8 @@ and allows commands.yml to persist state.
 import os
 import sys
 import json
+from engine.store import load_data, save_data
+
 
 if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
     try:
@@ -23,25 +25,14 @@ from personas.remzy import Remzy
 from personas.helpzy import Helpzy
 from notifier.telegram import get_updates, answer_callback_query
 
-DATA_DIR = "data"
-LAST_ID_FILE = os.path.join(DATA_DIR, "last_update_id.json")
-
 def load_last_update_id() -> int:
-    if os.path.exists(LAST_ID_FILE):
-        try:
-            with open(LAST_ID_FILE, "r") as f:
-                data = json.load(f)
-                return data.get("last_id")
-        except (json.JSONDecodeError, IOError):
-            return -1
-    return None
+    data = load_data("last_update_id", {})
+    return data.get("last_id", -1) if data else -1
 
 def save_last_update_id(last_id: int):
-    os.makedirs(DATA_DIR, exist_ok=True)
     try:
-        with open(LAST_ID_FILE, "w") as f:
-            json.dump({"last_id": last_id}, f)
-    except IOError as e:
+        save_data("last_update_id", {"last_id": last_id})
+    except Exception as e:
         print(f"[main_commands] Failed to save last_update_id: {e}")
 
 def main():
@@ -130,7 +121,8 @@ def main():
                 else:
                     answer_callback_query(query_id) # Acknowledge anyway
         except Exception as e:
-            print(f"[main_commands] Error processing update {update_id}: {e}")
+            # Note: Do not print raw `update` payload here to avoid leaking data in GitHub Actions logs.
+            print(f"[main_commands] Error processing update {update_id}: {type(e).__name__} - {e}")
 
     if highest_id is not None and highest_id != last_id:
         save_last_update_id(highest_id)

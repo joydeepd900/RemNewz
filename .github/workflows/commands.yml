@@ -34,6 +34,13 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Mask Telegram Payload
+        run: |
+          PAYLOAD='${{ toJson(github.event.client_payload.update) }}'
+          if [ -n "$PAYLOAD" ] && [ "$PAYLOAD" != "null" ]; then
+            echo "::add-mask::$PAYLOAD"
+          fi
+
       - name: Run commands pipeline
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}

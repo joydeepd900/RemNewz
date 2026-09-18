@@ -1,32 +1,20 @@
 import os
 import json
 from notifier.telegram import send_message
-
-DATA_DIR = "data"
-SETTINGS_FILE = os.path.join(DATA_DIR, "settings.json")
+from engine.store import load_data, save_data
 
 class Helpzy:
-    def __init__(self, file_path=SETTINGS_FILE):
-        self.file_path = file_path
+    def __init__(self):
         self.settings = {}
         self._load()
 
     def _load(self):
-        if not os.path.exists(DATA_DIR):
-            os.makedirs(DATA_DIR, exist_ok=True)
-            
-        if os.path.exists(self.file_path):
-            try:
-                with open(self.file_path, "r", encoding="utf-8") as f:
-                    self.settings = json.load(f)
-            except (json.JSONDecodeError, IOError):
-                self.settings = {}
+        self.settings = load_data("settings", {})
 
     def _save(self):
         try:
-            with open(self.file_path, "w", encoding="utf-8") as f:
-                json.dump(self.settings, f, indent=2)
-        except IOError as e:
+            save_data("settings", self.settings)
+        except Exception as e:
             print(f"[helpzy] Failed to save settings: {e}")
 
     def handle_command(self, text: str, message_thread_id: int = None, chat_id: str = None) -> bool:

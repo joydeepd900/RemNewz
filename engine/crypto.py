@@ -13,8 +13,7 @@ class CryptoManager:
             try:
                 self.fernet = Fernet(self.key.encode('utf-8'))
             except Exception as e:
-                print(f"[crypto] Invalid ENCRYPTION_KEY format: {e}")
-                self.is_enabled = False
+                raise RuntimeError(f"Invalid ENCRYPTION_KEY format. Failing securely. Details: {e}")
 
     def encrypt_dict(self, data: list | dict) -> bytes:
         """Serialize a dict/list to JSON and encrypt it."""

@@ -13,6 +13,7 @@ import time
 import json
 import requests
 import re
+from engine.store import load_data
 
 # Telegram Bot API limit (chars, not bytes)
 MAX_MESSAGE_LENGTH = 4096
@@ -263,27 +264,12 @@ def answer_callback_query(callback_query_id, text=None):
     except requests.exceptions.RequestException as e:
         print(f"[telegram] answerCallbackQuery failed: {e}")
 
-def resolve_topic_id(topic_name: str):
-    """Resolve a logical topic name (e.g. 'news', 'tasks') to a Telegram message_thread_id."""
-    settings_path = os.path.join("data", "settings.json")
-    if os.path.exists(settings_path):
-        try:
-            with open(settings_path, "r", encoding="utf-8") as f:
-                settings = json.load(f)
-                return settings.get(f"topic_{topic_name}")
-        except Exception:
-            pass
-    return None
+def resolve_topic_id(topic_name: str) -> int:
+    """Resolve configured topic ID from settings if bound."""
+    settings = load_data("settings", {})
+    return settings.get(f"topic_{topic_name}")
 
 def resolve_supergroup_id():
     """Resolve configured supergroup chat ID from settings.json if bound."""
-    settings_path = os.path.join("data", "settings.json")
-    if os.path.exists(settings_path):
-        try:
-            with open(settings_path, "r", encoding="utf-8") as f:
-                settings = json.load(f)
-                return settings.get("supergroup_id")
-        except Exception:
-            pass
-    return None
-
+    settings = load_data("settings", {})
+    return settings.get("supergroup_id")
