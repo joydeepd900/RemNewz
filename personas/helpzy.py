@@ -6,14 +6,30 @@ from engine.ai_client import normalize_topic_to_slug
 from main_digest import run_digest
 
 class Helpzy:
-    def __init__(self, *args, **kwargs):
+    def __init__(self, file_path: str = None, *args, **kwargs):
+        self.file_path = file_path
         self.settings = {}
         self._load()
 
     def _load(self):
-        self.settings = load_data("settings", {})
+        if self.file_path and os.path.exists(self.file_path):
+            try:
+                with open(self.file_path, "r", encoding="utf-8") as f:
+                    self.settings = json.load(f)
+            except Exception:
+                self.settings = {}
+        else:
+            self.settings = load_data("settings", {})
 
     def _save(self):
+        if self.file_path:
+            try:
+                with open(self.file_path, "w", encoding="utf-8") as f:
+                    json.dump(self.settings, f, indent=2)
+            except Exception as e:
+                print(f"[helpzy] Failed to save settings to {self.file_path}: {e}")
+            return
+
         try:
             save_data("settings", self.settings)
         except Exception as e:

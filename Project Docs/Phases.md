@@ -112,7 +112,33 @@ This roadmap divides the build into modular, verifiable phases. Each phase concl
 
 ---
 
-## Phase 6 — Future Stretch Expansions
+## Phase 6 — Intelligence, Security & Operational Overhauls (Completed)
+
+**Goal:** Advanced source management, fail-secure crypto hardening, curated digest filtering, and on-demand news delivery.
+
+- **Phase 6.1 — Dynamic Sources & Settings Management:**
+  - Added in-chat `/source` (`add`, `remove`, `list`) to dynamically manage RSS and Atom feeds without file edits.
+  - Added `/config set_limit [1-20]` to dynamically customize news items per digest.
+  - Added `/config repo_mode` with dynamic GitHub edit links for workflow files.
+  - Extended deduplication window to 21 days / 1,500 items in `data/seen.enc`.
+- **Phase 6.2 — Encryption Securities Deep-Check:**
+  - Hardened cryptographic subsystem with fail-secure `CryptoManager` (`AES-128-CBC` with `SHA256 HMAC`).
+  - Added universal encryption across all metadata files (`settings.enc`, `seen.enc`, `last_update_id.enc`).
+  - Implemented `_atomic_write_file` using temporary files, buffer flushing, and `os.replace` to prevent database corruption.
+  - Masked webhook payloads in GitHub Actions runner logs (`::add-mask::`).
+  - Added `.gitignore` shielding for `data/*.json` and `data/*.tmp`.
+- **Phase 6.3 — Newzy Digest Overhaul & On-Demand Briefings:**
+  - Standardized daily automated digest delivery to **8:00 AM UTC** (`0 8 * * *`).
+  - Implemented on-demand daily digest via `/digest` (marking items seen).
+  - Implemented instant news and topic search via `/news [query]` (without marking items seen).
+  - Upgraded GitHub trending filters with high-impact star thresholds (>250 past 7 days, >1200 past 30 days, >50 fallback).
+  - Expanded RSS ingestion to top 10 articles per feed.
+  - Added AI canonical topic slug normalization for clean GitHub topic queries.
+  - Added dynamic command registration (`scripts/register_commands.py`) synchronizing commands across all 4 Telegram scopes.
+
+---
+
+## Phase 7 — Future Stretch Expansions
 
 **Goal:** Advanced ecosystem and intelligence enhancements.
 
@@ -120,3 +146,4 @@ This roadmap divides the build into modular, verifiable phases. Each phase concl
   - Additional ingestion sources: ArXiv AI papers, Reddit (`r/LocalLLaMA`, `r/MachineLearning`), Product Hunt.
   - Weekly executive review digest delivered on Sunday mornings summarizing major trends.
   - SQLite backend migration if active task count exceeds hundreds of items.
+  - User-level authorization for shared Supergroup moderation.

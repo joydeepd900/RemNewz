@@ -70,12 +70,24 @@ class TaskStore:
     def __init__(self, 
                  todos_path=TODOS_FILE, 
                  archive_path=ARCHIVE_FILE, 
-                 todos_path_enc=TODOS_FILE_ENC, 
-                 archive_path_enc=ARCHIVE_FILE_ENC):
+                 todos_path_enc=None, 
+                 archive_path_enc=None):
         self.todos_path = todos_path
         self.archive_path = archive_path
-        self.todos_path_enc = todos_path_enc
-        self.archive_path_enc = archive_path_enc
+        
+        if todos_path_enc is not None:
+            self.todos_path_enc = todos_path_enc
+        elif todos_path != TODOS_FILE:
+            self.todos_path_enc = todos_path[:-5] + ".enc" if todos_path.endswith(".json") else todos_path + ".enc"
+        else:
+            self.todos_path_enc = TODOS_FILE_ENC
+
+        if archive_path_enc is not None:
+            self.archive_path_enc = archive_path_enc
+        elif archive_path != ARCHIVE_FILE:
+            self.archive_path_enc = archive_path[:-5] + ".enc" if archive_path.endswith(".json") else archive_path + ".enc"
+        else:
+            self.archive_path_enc = ARCHIVE_FILE_ENC
         
         self.todos = []
         self.archive = []

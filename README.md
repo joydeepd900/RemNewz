@@ -6,16 +6,17 @@
 
 An autonomous, serverless Telegram bot that acts as your personal AI News Anchor and Task Master, running entirely on free GitHub Actions.
 
-RemNewz fetches top posts from HackerNews and trending GitHub repositories based on your interests, uses an AI (Gemini, OpenRouter, or Groq) to synthesize them into concise, informative summaries, and delivers them directly to your Telegram. 
+RemNewz fetches top posts from HackerNews and trending GitHub repositories based on your interests, uses an AI (Gemini, OpenRouter, or Groq) to synthesize them into concise, informative summaries, and delivers them directly to your Telegram.
 
 It also functions as a full Natural Language Processing (NLP) Task Manager. Simply interact with it via chat (e.g., `/todo Remind me to review the architecture doc tomorrow at 5pm`), and it will parse your deadline, store it securely using Fernet encryption (AES-128-CBC), and notify you when it is due.
 
 ## Features
 
-- **Serverless News Digest:** Runs autonomously on a scheduled GitHub Actions cron.
+- **Serverless News Digest:** Runs autonomously on a daily GitHub Actions cron (08:00 UTC) with on-demand `/digest` execution.
+- **Instant News & Keyword Search:** Search live technical topics on demand using `/news <topic>`.
 - **Multi-Provider AI Synthesis:** Pluggable support for Gemini, Groq, or OpenRouter (with built-in fallback mechanisms).
 - **NLP Task Management:** Includes a personal assistant interface that understands natural language deadlines.
-- **Intelligent Due Checker:** Reminds you of pending tasks without overwhelming your inbox.
+- **Intelligent Due Checker:** Reminds you of pending tasks without overwhelming your inbox (24-hour snooze gap for overdue tasks).
 - **Supergroup Topic Routing:** Natively supports Telegram Forum Supergroups to route news digests and task alerts into dedicated topics.
 - **Privacy First (Encryption at Rest):** Automatically encrypts your tasks and settings into `.enc` files before pushing to GitHub. This allows you to securely use a free Public Repository without exposing personal data.
 
@@ -51,7 +52,7 @@ Navigate to your repository **Settings > Secrets and variables > Actions** and a
 - `TELEGRAM_BOT_TOKEN`: The token provided by BotFather.
 - `TELEGRAM_CHAT_ID`: Your personal chat ID.
 - `AI_PROVIDER`: Choose `gemini`, `openrouter`, or `groq`.
-- `AI_MODEL`: The specific model string (e.g., `gemini-1.5-flash`, `llama3-8b-8192`).
+- `AI_MODEL`: The specific model string (e.g., `gemini-1.5-flash`, `llama-3.3-70b-versatile`).
 - `ENCRYPTION_KEY`: The Fernet key generated in the previous step.
 - `GEMINI_API_KEY`, `GROQ_API_KEY`, or `OPENROUTER_API_KEY`: Depending on your chosen AI provider.
 
@@ -59,14 +60,16 @@ Navigate to your repository **Settings > Secrets and variables > Actions** and a
 
 1. Navigate to the **Actions** tab in your repository.
 2. Accept the prompt to enable workflows.
-3. Click on **Register Bot Commands**, then select **Run workflow**. This automatically pushes the bot's `/` command autocomplete menu to Telegram.
+3. Click on **Register Bot Commands**, then select **Run workflow**. This automatically pushes the bot's `/` command autocomplete menu across all Telegram scopes.
 4. Click on **Commands Poller**, then select **Run workflow**.
 5. Go to Telegram and type `/help`. RemNewz is now active and ready to assist.
 
 ## Commands and User Guide
 
-RemNewz features three built-in personas: **Remzy** (Tasks), **Helpzy** (Configuration), and **Newzy** (News).
+RemNewz features three built-in personas: **Newzy** (News), **Remzy** (Tasks), and **Helpzy** (Configuration).
 
+- `/digest` - Get your daily AI news digest immediately on-demand.
+- `/news [query]` - Instant news and search (e.g., `/news python`, `/news local llm`).
 - `/todo <description>` - Create an NLP task with parsed deadlines and priorities.
 - `/list` - View active tasks.
 - `/done <id>` - Mark a task complete and archive it.
@@ -74,9 +77,11 @@ RemNewz features three built-in personas: **Remzy** (Tasks), **Helpzy** (Configu
 - `/history` - View recently completed tasks.
 - `/source` - View, add (`/source add <url> [label]`), or remove news/RSS feed sources.
 - `/config` - View and manage dynamic settings (timezone, style, topics, news limits, forum routing).
-- `/help` - Display command summary.
+- `/help` - Display command summary and operational help.
 
 For a full reference of commands, natural language examples, and Supergroup topic routing instructions, see the [RemNewz User Guide](docs/user_guide.md).
+
+For visual system architecture, sequence diagrams, and flowcharts, see [System Structures & Diagrams](Project%20Docs/structures.md).
 
 ## Advanced Configuration: Private Repositories & Webhooks
 

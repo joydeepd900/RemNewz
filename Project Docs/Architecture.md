@@ -11,24 +11,25 @@ RemNewz is a serverless, dual-workflow architecture powered by GitHub Actions, c
 ```mermaid
 graph TD
     subgraph GitHub Actions Scheduled Environment
-        DW[digest.yml<br/>8:00 AM & 8:00 PM] -->|Fetch Repos & Feeds| FEAT[Fetchers: GitHub / RSS / HN]
-        FEAT -->|Filter Candidates & Apply Weights| SEEN[data/seen.json<br/>21d / 1500 Cap]
+        DW[digest.yml<br/>8:00 AM UTC & On-Demand] -->|Fetch Repos & Feeds| FEAT[Fetchers: GitHub / RSS / HN]
+        FEAT -->|Filter Candidates & Apply Weights| SEEN[data/seen.enc<br/>21d / 1500 Cap]
         FEAT -->|Synthesize Insights| AI[AI Engine: Pluggable Multi-Provider<br/>Gemini / OpenRouter / Groq]
         AI -->|Format HTML & Buttons| NEWZY[Persona: Newzy Digest]
         NEWZY -->|sendMessage| TG[Telegram Servers]
 
-        CW[commands.yml<br/>35 min Private / 3-5 min Public] -->|getUpdates & Callbacks| TG
+        CW[commands.yml<br/>30-35m Private / 5m Public / Webhook] -->|getUpdates & Callbacks| TG
         TG -->|Poll Updates Queue| ROUTER[Command Router & Allowlist]
         ROUTER -->|NLP /todo| REMZY[Persona: Remzy Tasks]
         ROUTER -->|Inline [📌 Remind]| REMZY
         ROUTER -->|Feedback [👍] [👎]| NEWZY_LEARN[Feed Preference Learning]
-        ROUTER -->|/config Settings| HELPZY[Persona: Helpzy Config]
+        ROUTER -->|/config & /source Settings| HELPZY[Persona: Helpzy Config]
+        ROUTER -->|/digest & /news| NEWZY
         REMZY -->|Check Deadlines| CHECKER[Due & Overdue Checker]
         CHECKER -->|Smart Nudge to Origin Topic| TG
         NEWZY -->|Route to #News Topic| TG
         
-        REMZY -->|Mutate| STORE[Storage Subsystem<br/>Plain JSON or Fernet Encrypted]
-        HELPZY -->|Mutate| SETTINGS[data/settings.json]
+        REMZY -->|Mutate| STORE[Storage Subsystem<br/>Fernet Encrypted / Plain JSON]
+        HELPZY -->|Mutate| SETTINGS[data/settings.enc]
         NEWZY_LEARN -->|Update Weights| SETTINGS
     end
 
@@ -41,38 +42,57 @@ graph TD
     TG <===> USER((User on Phone))
 ```
 
+> **Detailed Architecture Diagrams:** For comprehensive Mermaid sequence diagrams, state machines, and system flowcharts, see [structures.md](./structures.md).
+
 ---
 
 ## 2. Repo Layout
 
-```
+```text
 remnewz/
 ├── .github/
 │   └── workflows/
-│       ├── digest.yml              # Runs at 8:00 AM & 8:00 PM (localized)
-│       └── commands.yml            # Batched commands (35-min private / 3-5 min public) & checks deadlines
+│       ├── digest.yml              # Daily scheduled digest (08:00 UTC) & manual trigger
+│       ├── commands.yml            # Batched commands (poller & webhook dispatcher)
+│       └── register_commands.yml   # Automatic 4-scope Telegram command registration
 ├── config.example.yml              # Base template configuration (topics, feeds, timezone, style)
 ├── data/
 │   ├── .gitkeep
-│   ├── seen.json                   # Deduplication history (auto-pruned: 21 days / 1500 items)
-│   ├── todos.json                  # Active tasks (or todos.enc if encrypted)
-│   ├── archive_todos.json          # Completed tasks (capped at 50, or archive_todos.enc)
-│   ├── settings.json               # Dynamic user overrides set via Helpzy & feedback weights
-│   └── last_update_id.json         # High-water mark for Telegram updates
+│   ├── seen.enc                    # Deduplication history (auto-pruned: 21 days / 1500 items)
+│   ├── todos.enc                   # Active tasks (encrypted at rest)
+│   ├── archive_todos.enc           # Completed tasks (capped at 50, encrypted at rest)
+│   ├── settings.enc                # Dynamic user overrides set via Helpzy & feedback weights
+│   └── last_update_id.enc          # High-water mark for Telegram updates
+├── docs/
+│   ├── user_guide.md               # User guide & command reference
+│   ├── repo_modes_guide.md         # Public vs Private repository guide
+│   └── cloudflare_worker_guide.md  # Zero-polling webhook proxy setup guide
 ├── engine/
 │   ├── ai_client.py                # Multi-provider client (Gemini, OpenRouter, Groq with dynamic models)
-│   ├── crypto.py                   # Optional Fernet AES-256 encryption at rest
+│   ├── crypto.py                   # Fail-secure Fernet AES-128-CBC encryption at rest
+│   ├── dedup.py                    # URL normalization and deduplication store
+│   ├── store.py                    # Atomic file I/O and encrypted storage manager
 │   └── time_utils.py               # Timezone-aware date parsing and formatting
 ├── fetchers/
-│   ├── github_repos.py             # Authenticated GitHub Search API fetcher
-│   └── rss_hn.py                   # RSS feeds + Hacker News API fetcher
+│   ├── github_repos.py             # Authenticated GitHub Search API fetcher (>250/7d, >1200/30d)
+│   └── rss_hn.py                   # RSS feeds (top 10 items) + Hacker News API fetcher
 ├── personas/
 │   ├── newzy.py                    # Digest synthesis, adaptive styling & interactive buttons
 │   ├── remzy.py                    # NLP task parser, deadline evaluator & anti-spam nudger
 │   └── helpzy.py                   # In-chat /config dispatcher & settings manager
 ├── notifier/
 │   └── telegram.py                 # Telegram Bot API wrapper (HTML parse mode & 4KB chunker)
-├── main_digest.py                  # Entrypoint for digest.yml
+├── scripts/
+│   ├── register_commands.py        # Pushes commands to Telegram across all 4 standard scopes
+│   └── cf_worker_proxy.js          # Cloudflare Worker webhook proxy script
+├── tests/                          # Automated pytest test suites
+├── Project Docs/
+│   ├── Architecture.md             # System architecture & component breakdown
+│   ├── PRD.md                      # Product requirements document
+│   ├── Rules.md                    # Technical boundaries & conventions
+│   ├── Phases.md                   # Build roadmap & verification checkpoints
+│   └── structures.md               # Centralized Mermaid architecture diagrams
+├── main_digest.py                  # Entrypoint for digest.yml and on-demand /digest /news
 ├── main_commands.py                # Entrypoint for commands.yml
 ├── requirements.txt                # Lightweight dependencies
 └── README.md                       # Open-source template documentation & setup guide
@@ -84,13 +104,13 @@ remnewz/
 
 - **Runtime:** Python 3.11+ on GitHub Actions (`ubuntu-latest`).
 - **External APIs:**
-  - **Telegram Bot API:** HTTPS REST interface (`getUpdates`, `sendMessage`, `answerCallbackQuery`).
+  - **Telegram Bot API:** HTTPS REST interface (`getUpdates`, `sendMessage`, `answerCallbackQuery`, `setMyCommands`).
   - **Pluggable AI Providers:**
-    - Google Gemini (`gemini-2.0-flash` / `gemini-1.5-flash` — 1,500 req/day free, structured output support).
+    - Google Gemini (`gemini-2.0-flash` / `gemini-1.5-flash` — structured output support).
     - OpenRouter (Dynamic routing across free and community model endpoints).
-    - Groq (High-speed inference for supported free-tier models such as Qwen and gpt-oss with 8,000 TPM limit).
+    - Groq (High-speed inference for supported free-tier models).
   - **GitHub Search API:** Authenticated via standard `${{ secrets.GITHUB_TOKEN }}`.
-- **Python Dependencies:** `requests`, `feedparser`, `pyyaml`, `python-dateutil`, `cryptography` (for optional encryption).
+- **Python Dependencies:** `requests`, `feedparser`, `pyyaml`, `python-dateutil`, `cryptography` (for encryption).
 
 ---
 
@@ -100,36 +120,35 @@ remnewz/
 
 - **Provider Abstraction (`engine/ai_client.py`):**
   - Reads `AI_PROVIDER`, `AI_MODEL`, and `AI_API_KEY` from environment variables / secrets.
-  - Zero Hardcoded Models: Users can specify any valid model identifier (e.g. `gemini-2.0-flash`, `qwen/qwen-2.5-coder`, or an OpenRouter model string) via `AI_MODEL`.
+  - Zero Hardcoded Models: Users can specify any valid model identifier (e.g. `gemini-2.0-flash`, `llama-3.3-70b-versatile`, or an OpenRouter model string) via `AI_MODEL`.
   - Normalizes prompts and structured JSON outputs across Gemini, OpenRouter, and Groq.
+  - Normalizes canonical slugs for GitHub topic queries (e.g., lowercase alphanumeric with hyphens).
   - Gracefully degrades to rule-based formatting and regex date parsing if no AI provider is configured.
 - **Adaptive Feed Learning:**
   - Users can configure `digest_style`: `"concise"`, `"deep_dive"`, `"technical"`, or `"bullet_points"`.
   - News items carry `[ 👍 ]` and `[ 👎 ]` callback buttons.
-  - Tapping feedback records tag weights in `data/settings.json` (`preferred_tags`, `suppressed_tags`).
+  - Tapping feedback records tag weights in `data/settings.enc` (`preferred_tags`, `suppressed_tags`).
   - Future candidate ranking boosts preferred tags and filters out suppressed tags before sending to the AI synthesis step.
 
-### 4.2 Supergroup Topic Routing & Thread Retention (Phase 5)
+### 4.2 Supergroup Topic Routing & Thread Retention
 
 When RemNewz is used in a Telegram Supergroup with Topics (Forums) enabled, users can organize and isolate message streams:
-- **News Topic (`topic_news`):** Bound via `/config bind_news` (inside the desired topic) or `/config set_topic_news <id>`. All twice-daily Newzy digests are routed to this thread ID.
+- **News Topic (`topic_news`):** Bound via `/config bind_news` (inside the desired topic) or `/config set_topic_news <id>`. All scheduled digests and `/digest` syntheses are routed to this thread ID.
 - **Tasks Topic (`topic_tasks`):** Bound via `/config bind_tasks` (inside the desired topic) or `/config set_topic_tasks <id>`. Proactive due alerts and overdue nudges flow into this designated thread.
 - **Origin Thread Retention:** When `/todo` is called within an unbound topic thread, Remzy stores `origin_thread_id` inside the task object. If no global `topic_tasks` is bound, Remzy delivers due notifications directly back into that specific origin thread, keeping conversation context intact.
 - **Unbound/1-on-1 Fallback:** If topic routing is not used or cleared via `/config clear_topics`, `message_thread_id` resolves to `None`, directing messages to standard 1-on-1 chat or the supergroup General channel.
 
 ### 4.3 Storage & Privacy Subsystem
 
-Phases 0–3 use **plain JSON** for simplicity, debuggability, and fast iteration. Encryption is added in Phase 4 once there is real data worth protecting.
-
-1. **Plain JSON Mode (Phases 0–3, default):**
-   - `data/todos.json` and `data/archive_todos.json` are readable JSON files committed directly to git.
-   - Ideal for private repositories and local development.
-2. **Encrypted Mode (Phase 4+, optional):**
-   - When `ENCRYPTION_KEY` is provided, `engine/crypto.py` encrypts task files to `todos.enc` / `archive_todos.enc` via **AES-256 (Fernet)** before git commit, and decrypts in runner memory.
-   - Standardized across both public and private repos.
+1. **Encrypted Mode (Fernet / AES-128-CBC with SHA256 HMAC):**
+   - When `ENCRYPTION_KEY` is provided, `engine/crypto.py` transparently encrypts all sensitive data (`todos.enc`, `archive_todos.enc`, `settings.enc`, `seen.enc`, `last_update_id.enc`) before disk write.
+   - Decryption occurs only in runner memory. If `ENCRYPTION_KEY` is invalid or corrupted, `CryptoManager` fails securely by raising `RuntimeError` rather than leaking plaintext.
+2. **Atomic Writes & Zero Corruption:**
+   - File writes use `_atomic_write_file`: data is flushed to `.tmp` files, synced via `os.fsync`, and atomically moved into place using `os.replace`.
+   - All `data/*.tmp` and `data/*.json` files are shielded in `.gitignore`.
 3. **Repository Mode Cadence Toggle:**
-   - *Public Repositories:* Unlimited Actions minutes allow high-frequency polling (**every 3–5 minutes**).
-   - *Private Repositories:* Scheduled at **35-minute intervals** (`0,35 * * * *`) to stay within the 2,000 monthly free minutes quota, or switched to instantaneous Webhook Mode.
+   - *Public Repositories:* Unlimited Actions minutes allow high-frequency polling (**every 5 minutes**).
+   - *Private Repositories:* Scheduled at **35-minute intervals** (`0,35 * * * *`) or using free Cloudflare Worker Webhook Mode.
 
 ### 4.4 Git Concurrency & Conflict Prevention
 Because `digest.yml` and `commands.yml` run independently, simultaneous runs could cause git push rejections. RemNewz mitigates this through two layers:

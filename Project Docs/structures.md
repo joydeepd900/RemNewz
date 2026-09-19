@@ -1,0 +1,330 @@
+# RemNewz — System Structures & Architecture Diagrams
+
+This document centralizes the visual architectural models and Mermaid sequence diagrams for **RemNewz**. It illustrates the system topology, end-to-end news ingestion flow, task management lifecycle, Cloudflare webhook sequence, persona decision routing, and storage encryption subsystem.
+
+---
+
+## 1. System Topology & Infrastructure Overview
+
+RemNewz operates as an autonomous, serverless suite running on GitHub Actions with zero dedicated servers. It interacts with the Telegram Bot API for user communication and interfaces with pluggable AI providers for natural language synthesis.
+
+```mermaid
+graph TB
+    subgraph Telegram["Telegram Ecosystem"]
+        USER["User (Mobile / Desktop)"]
+        TG_API["Telegram Bot API"]
+        USER <-->|"Interactions & Commands"| TG_API
+    end
+
+    subgraph Ingress["Ingress Layer (Zero Polling Webhook)"]
+        CF_WORKER["Cloudflare Worker Proxy<br/><i>remnewz-telegram-proxy</i>"]
+        TG_API -->|"Webhook POST (Secret Token Header)"| CF_WORKER
+        CF_WORKER -->|"POST repository_dispatch<br/>('telegram-webhook')"| GH_DISPATCH["GitHub Repository Dispatch"]
+    end
+
+    subgraph GitHubActions["GitHub Actions Serverless Runners"]
+        subgraph Workflows["Workflows (.github/workflows/)"]
+            WF_CMD["commands.yml<br/>• Webhook Dispatch<br/>• 5-min Poller (Public)<br/>• 30-min Poller (Private)"]
+            WF_DIGEST["digest.yml<br/>• Scheduled Cron (08:00 UTC)<br/>• Manual workflow_dispatch"]
+            WF_REG["register_commands.yml<br/>• Manual workflow_dispatch"]
+        end
+
+        subgraph CoreApp["Application Runtime (Python 3.11/3.12)"]
+            MAIN_CMD["main_commands.py<br/>(Dispatcher & Poller)"]
+            MAIN_DIGEST["main_digest.py<br/>(Digest Orchestrator)"]
+            REG_SCRIPT["scripts/register_commands.py<br/>(4 Telegram Scopes)"]
+            
+            WF_CMD --> MAIN_CMD
+            WF_DIGEST --> MAIN_DIGEST
+            WF_REG --> REG_SCRIPT
+        end
+
+        subgraph Personas["Persona Layer"]
+            NEWZY["Newzy<br/>(News Scout & Synthesizer)"]
+            REMZY["Remzy<br/>(NLP Tasks & Anti-Spam Alerts)"]
+            HELPZY["Helpzy<br/>(Settings & Topic Routing)"]
+            
+            MAIN_CMD --> HELPZY
+            MAIN_CMD --> REMZY
+            MAIN_CMD --> NEWZY
+            MAIN_DIGEST --> NEWZY
+        end
+    end
+
+    subgraph ExternalServices["External APIs & AI Engine"]
+        GH_API["GitHub REST API<br/>(Trending / Top Repos)"]
+        RSS_SOURCES["RSS / Atom Feeds & HackerNews"]
+        
+        AI_ENGINE["Multi-Provider AI Engine<br/>(engine/ai_client.py)"]
+        GEMINI["Google Gemini API"]
+        GROQ["Groq Cloud API"]
+        OPENROUTER["OpenRouter API"]
+        
+        AI_ENGINE --> GEMINI
+        AI_ENGINE --> GROQ
+        AI_ENGINE --> OPENROUTER
+        
+        NEWZY --> GH_API
+        NEWZY --> RSS_SOURCES
+        NEWZY --> AI_ENGINE
+        REMZY --> AI_ENGINE
+    end
+
+    subgraph Persistence["Storage Subsystem (Git Repository: main)"]
+        CRYPTO["CryptoManager (engine/crypto.py)<br/>AES-128-CBC Fernet Encryption"]
+        STORE["Store (engine/store.py)<br/>Atomic Writes (.tmp -> replace)"]
+        
+        DATA_ENC["Encrypted Data (/data)<br/>• todos.enc<br/>• archive_todos.enc<br/>• settings.enc<br/>• seen.enc<br/>• last_update_id.enc"]
+        
+        REMZY <--> STORE
+        HELPZY <--> STORE
+        NEWZY <--> STORE
+        STORE <--> CRYPTO
+        CRYPTO <--> DATA_ENC
+    end
+
+    GH_DISPATCH --> WF_CMD
+    REG_SCRIPT -->|"setMyCommands"| TG_API
+    MAIN_CMD -->|"sendMessage / answerCallbackQuery"| TG_API
+    MAIN_DIGEST -->|"sendMessage (HTML Chunks)"| TG_API
+```
+
+---
+
+## 2. End-to-End News Ingestion & Synthesis Flow (Newzy)
+
+This diagram illustrates how Newzy discovers, filters, deduplicates, synthesizes, and delivers technical news both on a schedule and on-demand (`/digest`, `/news [query]`).
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Triggers as Trigger (Cron 08:00 UTC / /digest / /news)
+    participant Orchestrator as main_digest.py
+    participant Settings as engine/store.py (settings.enc)
+    participant FetcherGH as fetchers/github_repos.py
+    participant FetcherRSS as fetchers/rss_hn.py
+    participant Dedup as engine/dedup.py (seen.enc)
+    participant AI as engine/ai_client.py
+    participant Persona as personas/newzy.py
+    participant Telegram as notifier/telegram.py
+
+    Triggers->>Orchestrator: Execute run_digest(chat_id, thread_id, max_items, mark_seen, query)
+    Orchestrator->>Settings: Load active topics, RSS feeds, limit, and digest_style
+    Settings-->>Orchestrator: Return configuration dict
+
+    alt Query Mode (/news <keyword>)
+        Orchestrator->>FetcherGH: Search GitHub repos matching query
+        Orchestrator->>FetcherRSS: Filter RSS / HN entries matching query
+    else Standard Digest Mode (Cron or /digest)
+        Orchestrator->>FetcherGH: Fetch repos (>250 stars/7d, >1200 stars/30d, >50 stars/fallback)
+        Orchestrator->>FetcherRSS: Fetch top 10 items per feed + HackerNews top stories
+    end
+
+    FetcherGH-->>Orchestrator: Return repo items
+    FetcherRSS-->>Orchestrator: Return feed items
+
+    Orchestrator->>Dedup: Filter unseen items (against seen.enc)
+    Dedup-->>Orchestrator: Unseen candidate pool
+
+    Orchestrator->>Orchestrator: Rank items using feedback weights & cap to limit (default: 5)
+
+    loop For each selected item
+        Orchestrator->>Persona: synthesize_item(item, style, provider, model)
+        Persona->>AI: generate_text(prompt)
+        AI-->>Persona: AI Synthesis ("What it is", "Why it matters", "Key takeaways")
+        Persona->>Persona: Format HTML + attach inline buttons ([📌 Remind Me], [👍], [👎])
+        Persona-->>Orchestrator: Formatted HTML message & callback data
+        Orchestrator->>Telegram: send_message(html_text, reply_markup, thread_id)
+        Telegram-->>Orchestrator: Delivery success
+    end
+
+    opt mark_seen is True (Automated Digest or /digest)
+        Orchestrator->>Dedup: mark_seen(item_urls) & prune_seen(retention=21 days, max=1500)
+        Dedup->>Settings: Save updated seen.enc
+    end
+```
+
+---
+
+## 3. NLP Task Management & Anti-Spam Due Engine (Remzy)
+
+This diagram details Remzy's task parsing pipeline, Fernet encryption at rest, proactive due notification engine, and 24-hour anti-spam snooze protection.
+
+```mermaid
+stateDiagram-v2
+    [*] --> CommandReceived: User sends /todo or taps [📌 Remind Me]
+
+    state CommandReceived {
+        [*] --> ParseInput
+        ParseInput --> AI_NLP_Parser: Send natural text to AI Client
+        AI_NLP_Parser --> ExtractMetadata: Parse title, due_at (UTC), priority, tags
+        AI_NLP_Parser --> RegexFallback: On API Failure / Missing Key
+        RegexFallback --> ExtractMetadata: Deterministic date parsing
+        ExtractMetadata --> AtomicSave: Store task in data/todos.enc
+    }
+
+    CommandReceived --> ActiveTasks: Task Active
+
+    state ActiveTasks {
+        [*] --> IdleWaiting
+        IdleWaiting --> DeadlineEvaluation: commands.yml poller runs
+        
+        state DeadlineEvaluation {
+            check_due: Is now_utc >= due_at?
+            check_reminded: Has reminded_due been sent?
+            check_snooze: Is now_utc - last_nudge >= 24 hours?
+
+            [*] --> check_due
+            check_due --> check_reminded: Yes
+            check_due --> [*]: No (Task not due)
+
+            check_reminded --> SendDueAlert: False (First time due)
+            check_reminded --> check_snooze: True (Already alerted)
+
+            SendDueAlert --> MarkReminded: Set reminded_due = True
+            check_snooze --> SendOverdueNudge: Yes (>= 24 hours elapsed)
+            check_snooze --> [*]: No (< 24 hours elapsed, suppress spam)
+
+            SendOverdueNudge --> UpdateLastNudge: Set last_overdue_nudge = now
+        }
+    }
+
+    ActiveTasks --> Completed: User sends /done <id>
+    
+    state Completed {
+        [*] --> MoveToArchive: Remove from todos.enc
+        MoveToArchive --> CapArchive: Append to archive_todos.enc (Cap at 50)
+        CapArchive --> NotifyCompletion: Send "Task Completed & Archived"
+    }
+
+    Completed --> [*]
+```
+
+---
+
+## 4. Cloudflare Worker Webhook Proxy Flow (Zero-Polling)
+
+This sequence diagram illustrates the zero-polling webhook architecture for instant (<1s) Telegram responses without consuming GitHub Actions cron minutes.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as User on Telegram
+    participant Telegram as Telegram Bot API
+    participant CFWorker as Cloudflare Worker (remnewz-telegram-proxy)
+    participant GitHubAPI as GitHub REST API (repository_dispatch)
+    participant Runner as GitHub Actions Runner (commands.yml)
+    participant Bot as main_commands.py
+
+    User->>Telegram: Send command (e.g., /digest, /todo buy milk)
+    Telegram->>CFWorker: HTTPS POST update payload (X-Telegram-Bot-Api-Secret-Token)
+    
+    CFWorker->>CFWorker: Verify secret token matches SECRET_HEADER
+    alt Invalid Secret Token
+        CFWorker-->>Telegram: 403 Forbidden
+    else Valid Token
+        CFWorker->>GitHubAPI: POST /repos/{owner}/{repo}/dispatches<br/>{"event_type": "telegram-webhook", "client_payload": {"update": {...}}}
+        GitHubAPI-->>CFWorker: 204 No Content
+        CFWorker-->>Telegram: 200 OK
+    end
+
+    GitHubAPI->>Runner: Trigger commands.yml job (repository_dispatch)
+    Runner->>Runner: Mask payload: ::add-mask:: ${{ toJson(event.client_payload.update) }}
+    Runner->>Bot: Execute python main_commands.py (with TELEGRAM_UPDATE_PAYLOAD)
+    
+    Bot->>Bot: Route command to Persona (Helpzy / Remzy / Newzy)
+    Bot->>Telegram: Send response message to chat_id / message_thread_id
+    Telegram-->>User: Display bot response in Telegram chat
+    
+    Bot->>Runner: Save updated state files
+    Runner->>Runner: Commit & Push: chore(sync): update tasks and settings [skip ci]
+```
+
+---
+
+## 5. Persona Decision Matrix & Scope Routing
+
+This diagram models how incoming messages, forum supergroup threads, and Telegram API command scopes are evaluated and routed.
+
+```mermaid
+flowchart TD
+    START([Incoming Telegram Update]) --> AUTH{Chat ID or From ID<br/>== TELEGRAM_CHAT_ID?}
+    AUTH -- No --> DROP([Silently Drop Update])
+    AUTH -- Yes --> MSG_TYPE{Update Type?}
+
+    MSG_TYPE -- Callback Query --> CB_ROUTER{Button Action?}
+    CB_ROUTER -- remind_me --> CB_REMIND[Remzy: Create 24h Review Task]
+    CB_ROUTER -- like_ / dislike_ --> CB_FEEDBACK[Helpzy: Adjust Tag Preferences & Weights]
+    CB_REMIND --> ANS_CB[Telegram: answerCallbackQuery]
+    CB_FEEDBACK --> ANS_CB
+
+    MSG_TYPE -- Text Message --> CMD_CHECK{Starts with '/'?}
+    CMD_CHECK -- No --> IGNORE([Ignore Non-Command Message])
+    CMD_CHECK -- Yes --> NORMALIZE[Extract Command Name & Strip @BotMention]
+
+    NORMALIZE --> SCOPE_HELPZY{Helpzy Commands?}
+    SCOPE_HELPZY -- "/help" --> H_HELP[Send Command Reference]
+    SCOPE_HELPZY -- "/config" --> H_CONFIG[View / Mutate Dynamic Settings]
+    SCOPE_HELPZY -- "/source" --> H_SOURCE[List / Add / Remove RSS Feeds]
+    SCOPE_HELPZY -- "/digest" --> H_DIGEST[Trigger Immediate Daily Digest]
+    SCOPE_HELPZY -- "/news" --> H_NEWS[Fetch Instant News or Keyword Search]
+
+    SCOPE_HELPZY -- Unmatched --> SCOPE_REMZY{Remzy Commands?}
+    SCOPE_REMZY -- "/todo" --> R_TODO[Parse NLP Task & Schedule Deadline]
+    SCOPE_REMZY -- "/list" --> R_LIST[Display Active Tasks]
+    SCOPE_REMZY -- "/done" --> R_DONE[Archive Task to archive_todos.enc]
+    SCOPE_REMZY -- "/remove" --> R_REMOVE[Delete Task Permanently]
+    SCOPE_REMZY -- "/history" --> R_HIST[Display Last 10 Archived Tasks]
+
+    SCOPE_REMZY -- Unmatched --> UNKNOWN([Ignore Unknown Command])
+
+    H_CONFIG --> TOPIC_ROUTING{Subcommand?}
+    TOPIC_ROUTING -- "bind_news" --> BIND_N[Set topic_news = current_thread_id]
+    TOPIC_ROUTING -- "bind_tasks" --> BIND_T[Set topic_tasks = current_thread_id]
+    TOPIC_ROUTING -- "clear_topics" --> CLEAR_T[Unbind all topic routing]
+    TOPIC_ROUTING -- "set_limit" --> LIMIT[Set news_limit = 1-20]
+    TOPIC_ROUTING -- "repo_mode" --> REPO_M[Display Public/Private guide & edit link]
+    TOPIC_ROUTING -- "add_topic" --> ADD_T[AI Normalizes Canonical Slug & Adds]
+```
+
+---
+
+## 6. Storage & Cryptographic Architecture (Fail-Secure)
+
+This diagram details the atomic file-write pattern and Fernet symmetric encryption mechanism safeguarding personal data in public and private repositories.
+
+```mermaid
+flowchart TD
+    subgraph Memory["Application Memory"]
+        OBJ[Python Dict / List Data]
+        JSON_BYTES[JSON Serialized Bytes]
+        OBJ --> JSON_BYTES
+    end
+
+    subgraph CryptoLayer["engine/crypto.py (CryptoManager)"]
+        CHK_KEY{ENCRYPTION_KEY<br/>Set & Valid?}
+        CHK_KEY -- Invalid Format --> FAIL_SECURE[Raise RuntimeError<br/>Fail Securely & Halt]
+        CHK_KEY -- Missing / Empty --> PLAIN_MODE[Plaintext JSON Mode]
+        CHK_KEY -- Valid Fernet Key --> ENC_MODE[AES-128-CBC + HMAC-SHA256]
+        
+        JSON_BYTES --> CHK_KEY
+        ENC_MODE --> CIPHER_BYTES[Encrypted Ciphertext Bytes]
+    end
+
+    subgraph AtomicIO["engine/store.py (_atomic_write_file)"]
+        TMP_FILE["Write to Temporary File<br/>(path.tmp)"]
+        FSYNC["Flush Buffer & os.fsync(fd)<br/>Ensure bytes written to physical storage"]
+        OS_REPLACE["Atomic Replace<br/>os.replace(path.tmp, target_path)"]
+        
+        CIPHER_BYTES --> TMP_FILE
+        PLAIN_MODE --> TMP_FILE
+        TMP_FILE --> FSYNC
+        FSYNC --> OS_REPLACE
+    end
+
+    subgraph DiskStorage["Repository Storage (/data)"]
+        OS_REPLACE --> DATA_ENC[Target File: data/*.enc]
+        OS_REPLACE --> DATA_JSON[Target File: data/*.json (Plaintext Mode)]
+        GITIGNORE[".gitignore Shielding<br/>• Ignores data/*.tmp<br/>• Ignores legacy data/*.json"]
+    end
+```

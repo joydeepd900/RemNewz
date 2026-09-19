@@ -20,8 +20,9 @@ Staying ahead of rapid open-source innovations, AI developments, and personal de
 RemNewz operates as a single Telegram bot presenting three specialized personas to the user:
 
 1. 📰 **Newzy (The Intel & Discovery Scout):**
-   - Dispatches explanatory morning and evening digests (8:00 AM & 8:00 PM in user's local timezone).
-   - Reads GitHub trending repositories, RSS feeds, and Hacker News.
+   - Dispatches daily morning digests at 8:00 AM UTC (`0 8 * * *`).
+   - Supports on-demand daily digest execution via `/digest` and instant keyword searches via `/news <topic>`.
+   - Reads GitHub trending repositories (with curated star thresholds: >250 past 7d, >1200 past 30d, >50 fallback), RSS feeds (top 10 items), and Hacker News.
    - Synthesizes findings using AI into personalized formats (*"What it is"*, *"Why it matters"*, *"Who should care"*).
    - Equips every digest item with an interactive `[ 📌 Remind Me ]` inline button and feedback controls (`[ 👍 ]`, `[ 👎 ]`).
    - Adapts to user interests dynamically over time.
@@ -31,15 +32,16 @@ RemNewz operates as a single Telegram bot presenting three specialized personas 
 2. ⏰ **Remzy (The NLP Task & Reminder Specialist):**
    - Understands natural language to-dos via NLP (e.g. `/todo read the vLLM paper by Friday 5pm with high priority`).
    - Handles task lifecycle: creation, listing, completion (`/done`), and archiving.
-   - Delivers proactive, non-spammy due alerts and overdue nudges.
+   - Delivers proactive, non-spammy due alerts and overdue nudges (24-hour snooze gap).
    - Converts news items tapped via Newzy's inline buttons into structured tasks.
    - Remembers the `origin_thread_id` of tasks created inside Supergroup topics, ensuring reminders reply in context if a dedicated `#Tasks` topic is not bound.
    - Signs off as *Remzy*.
 
 3. ⚙️ **Helpzy (The In-Chat Configuration Specialist):**
    - Allows users to customize settings directly within Telegram without editing code or committing files manually.
-   - Commands: `/config`, `/config add_topic`, `/config remove_topic`, `/config add_feed`, `/config set_tz`, `/config set_style`, `/config bind_news`, `/config bind_tasks`, `/config clear_topics`, `/help`.
-   - Persists dynamic overrides to git automatically.
+   - Commands: `/digest`, `/news`, `/todo`, `/list`, `/done`, `/remove`, `/history`, `/source`, `/config`, `/help`.
+   - In-chat settings: `/config set_tz`, `/config set_style`, `/config set_limit`, `/config repo_mode`, `/config bind_news`, `/config bind_tasks`, `/config clear_topics`, `/source add`, `/source remove`, `/source list`.
+   - Persists dynamic overrides to git automatically in `data/settings.enc`.
    - Signs off as *Helpzy*.
 
 ---
@@ -54,7 +56,7 @@ RemNewz operates as a single Telegram bot presenting three specialized personas 
 4. **Seamless News-to-Task Pipeline:** Bridge the gap between reading news and taking action via 1-tap inline buttons and context-aware task creation.
 5. **Conversational Task Management:** Natural language task parsing, status tracking, and intelligent reminder cadences that respect user focus.
 6. **Self-Hostable GitHub Template:** Any user can fork or instantiate the repository, configure secrets, and have their own private or public instance running in minutes.
-7. **Privacy in Public Repositories:** Support optional symmetric encryption-at-rest (`Fernet / AES-128-CBC`) so users who run in public repos (for unlimited free Actions minutes) never expose their personal to-dos or private notes.
+7. **Privacy in Public Repositories:** Support symmetric encryption-at-rest (`Fernet / AES-128-CBC`) so users who run in public repos (for unlimited free Actions minutes) never expose their personal to-dos or private notes.
 8. **Zero Operational Cost ($0):** Run 100% on free tiers (GitHub Actions, Telegram Bot API, free AI provider tiers) with zero server maintenance.
 
 ### 3.2 Non-Goals (v1)
@@ -62,7 +64,7 @@ RemNewz operates as a single Telegram bot presenting three specialized personas 
 - No web dashboard, mobile app, or GUI — Telegram is the single, universal interface.
 - No multi-tenant hosted SaaS — each user self-hosts their own instance via GitHub.
 - No paid cloud infrastructure or paid LLM tokens required.
-- No sub-second real-time responsiveness — operations run asynchronously on scheduled polling intervals.
+- No sub-second real-time responsiveness without webhook proxy.
 
 ---
 
@@ -70,39 +72,40 @@ RemNewz operates as a single Telegram bot presenting three specialized personas 
 
 ### 4.1 Discovery & Intelligent Synthesis (Newzy)
 
-- **FR1 — Multi-Source Ingestion:** Fetch trending/new GitHub repositories (via GitHub API) and tech/AI news from configured RSS feeds and Hacker News.
+- **FR1 — Multi-Source Ingestion:** Fetch trending/new GitHub repositories (via GitHub API) with quality star thresholds (>250 past 7d, >1200 past 30d, >50 fallback) and tech/AI news from configured RSS feeds (top 10 per feed) and Hacker News.
 - **FR2 — Pluggable AI Synthesis:** Send candidate items to a configurable AI engine (Google Gemini, OpenRouter, or Groq) with user-selectable model strings (`AI_MODEL`) to extract key innovations, practical takeaways, and relevance.
-- **FR3 — Deduplication & Pruning:** Compare candidates against `data/seen.json`. Auto-prune entries older than **21 days** or cap history to **1,500 items** to maintain high performance.
-- **FR4 — Twice-Daily Scheduled Delivery:** Deliver digests twice daily at **8:00 AM and 8:00 PM** local time (customizable).
+- **FR3 — Deduplication & Pruning:** Compare candidates against `data/seen.enc`. Auto-prune entries older than **21 days** or cap history to **1,500 items** to maintain high performance.
+- **FR4 — Daily Scheduled Delivery:** Deliver digests once daily at **8:00 AM UTC** (`0 8 * * *`).
 - **FR5 — Interactive Action Buttons & Feedback Loop:** Attach an inline Telegram button (`[ 📌 Remind Me ]`) to each digest item to bridge directly into Remzy, along with `[ 👍 ]` and `[ 👎 ]` buttons to train feed preferences.
 - **FR6 — Zero-Key Graceful Fallback:** If no AI API key is configured, fall back to clean, deterministic markdown/HTML link summaries.
+- **FR22 — On-Demand Execution & Instant News Search:** Allow users to request an immediate executive digest anytime via `/digest` (marking items seen) or run keyword searches across feeds via `/news <topic>` (without marking items seen).
 
 ### 4.2 Conversational Reminders & Tasks (Remzy)
 
 - **FR7 — Natural Language Task Parsing:** Parse commands like `/todo <text> [deadline] [priority]` using AI/NLP to extract task titles, dates, priorities, and tags.
 - **FR8 — 1-Tap News-to-Task:** Process Telegram `callback_query` updates from Newzy's inline buttons, instantly filing the news item as a pending task.
 - **FR9 — Task Listing & Filtering:** Display active tasks sorted by urgency via `/list`.
-- **FR10 — Task Lifecycle & Archiving:** Mark tasks as done (`/done <id>`) or delete them (`/remove <id>`). Automatically move completed items to `data/archive_todos.json` capped at the **last 50 completed tasks**.
+- **FR10 — Task Lifecycle & Archiving:** Mark tasks as done (`/done <id>`) or delete them (`/remove <id>`). Automatically move completed items to `data/archive_todos.enc` capped at the **last 50 completed tasks**.
 - **FR11 — Smart Nudge Cadence (Anti-Spam):**
   - Alert once when a task reaches its due window.
-  - Send at most one overdue nudge every 12–24 hours (configurable snooze window) to prevent spamming.
+  - Send at most one overdue nudge every 24 hours to prevent spamming.
 - **FR12 — Completed History:** Allow users to view recently finished tasks via `/history`.
 
 ### 4.3 In-Chat Configuration & Operations (Helpzy)
 
 - **FR13 — Setting Inspection:** `/config` outputs current timezone, active topics, RSS feeds, digest times, feed style, and storage encryption status.
-- **FR14 — Dynamic Adjustments:** `/config add_topic <tag>`, `/config remove_topic <tag>`, `/config add_feed <url> <name>`, `/config set_tz <IANA_tz>`, `/config set_style <style>`.
-- **FR15 — Dynamic Overrides:** Persist chat-configured settings in `data/settings.json` which override `config.example.yml` defaults without requiring manual YAML edits.
+- **FR14 — Dynamic Adjustments:** `/config add_topic <tag>`, `/config remove_topic <tag>`, `/config set_tz <IANA_tz>`, `/config set_style <style>`, `/config set_limit <1-20>`, `/config repo_mode`.
+- **FR15 — Dynamic Overrides:** Persist chat-configured settings in `data/settings.enc` which override `config.example.yml` defaults without requiring manual YAML edits.
+- **FR23 — Dynamic Source Management:** Manage RSS feeds in chat via `/source add <url> [label]`, `/source remove <id/url>`, and `/source list`.
 
 ### 4.4 Security, Platform & Privacy
 
-- **FR16 — Single-User Authorization:** Verify incoming message `chat.id == TELEGRAM_CHAT_ID`. Silently ignore any updates from unauthorized users.
+- **FR16 — Single-User Authorization:** Verify incoming message `chat.id == TELEGRAM_CHAT_ID` or sender in group. Silently ignore any updates from unauthorized users.
 - **FR17 — Secret Isolation:** Zero secrets, tokens, or credentials in source code or git history. All credentials injected via GitHub Actions Secrets.
 - **FR18 — Storage & Repo Mode Toggle:**
-  - Phases 0–3 use **plain JSON** (`todos.json`, `archive_todos.json`) for simplicity and debuggability.
-  - Phase 4 introduces **optional Fernet encryption-at-rest** (`todos.enc`, `archive_todos.enc`) via an `ENCRYPTION_KEY` secret, standardized across both public and private repos. Plaintext remains the fallback if the key is omitted.
+  - Standardizes **Fernet encryption-at-rest** (`todos.enc`, `archive_todos.enc`, `settings.enc`, `seen.enc`) via `ENCRYPTION_KEY`. Plaintext remains the fallback if the key is omitted.
   - *Public Repo Mode:* Runs `commands.yml` at high frequency (every **3–5 minutes**) with unlimited free Actions minutes.
-  - *Private Repo Mode:* Runs `commands.yml` at **35-minute intervals** (`0,35 * * * *`) to stay within the 2,000 monthly free Actions minutes limit.
+  - *Private Repo Mode:* Runs `commands.yml` at **35-minute intervals** (`0,35 * * * *`) or utilizes Cloudflare Worker webhook proxy.
 - **FR19 — Concurrency & Push Resilience:** Use GitHub Actions concurrency groups and a `git pull --rebase` retry loop to prevent push conflicts between workflows.
 - **FR20 — Supergroup Topic Routing & Thread Retention:** Support Telegram Forum Supergroups by routing Newzy digests to `topic_news` and Remzy task alerts to `topic_tasks`. For tasks created in unbound topics, preserve `origin_thread_id` to direct deadline alerts back into the context thread.
 - **FR21 — Event-Driven Webhook Dispatch Option:** Support optional zero-polling instant execution via Cloudflare Worker webhook proxy, passing payloads via `repository_dispatch` (`TELEGRAM_UPDATE_PAYLOAD`).
@@ -111,7 +114,7 @@ RemNewz operates as a single Telegram bot presenting three specialized personas 
 
 ## 5. Success Criteria
 
-1. **Information Quality:** The twice-daily digest delivers concise, genuinely insightful summaries that save 30+ minutes of manual scrolling every day.
+1. **Information Quality:** The daily digest and on-demand news search deliver concise, genuinely insightful summaries that save 30+ minutes of manual scrolling every day.
 2. **Adaptive Personalization:** The digest actively reflects user feedback (`[ 👍 ]` / `[ 👎 ]`), prioritizing topics the user cares about.
 3. **Zero Friction Task Capture:** Turning an interesting open-source repo into a weekend research reminder takes exactly one tap on your phone.
 4. **No False Reminders or Spam:** Due notifications fire accurately according to your local timezone, without repetitive nagging loops.

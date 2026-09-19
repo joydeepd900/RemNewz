@@ -17,6 +17,8 @@ Welcome to RemNewz. This guide details how to interact with your personal AI ass
    - [Deadline Alerts & Anti-Spam Nudges](#deadline-alerts--anti-spam-nudges)
 3. [Helpzy: In-Chat Settings & Configuration](#3-helpzy-in-chat-settings--configuration)
    - [Command Overview](#command-overview-help)
+   - [On-Demand Daily Digest](#on-demand-daily-digest-digest)
+   - [Instant News & Keyword Search](#instant-news--keyword-search-news)
    - [Inspect Current Configuration](#inspect-current-configuration-config)
    - [Manage News Sources & RSS Feeds](#manage-news-sources--rss-feeds-source)
    - [Configure Digest Item Limit](#configure-digest-item-limit-config-set_limit)
@@ -26,6 +28,7 @@ Welcome to RemNewz. This guide details how to interact with your personal AI ass
    - [Repository Mode & Polling Schedule](#repository-mode--polling-schedule-config-repo_mode)
 4. [Newzy: News Synthesis & Adaptive Feedback](#4-newzy-news-synthesis--adaptive-feedback)
    - [Delivery Schedule & Sources](#delivery-schedule--sources)
+   - [Quality Thresholds & Curation](#quality-thresholds--curation)
    - [Interactive Feedback](#interactive-feedback)
 5. [Telegram Supergroups & Forum Topic Routing (Optional)](#5-telegram-supergroups--forum-topic-routing-optional)
    - [Default Chat vs. Supergroups with Topics](#default-chat-vs-supergroups-with-topics)
@@ -43,9 +46,9 @@ Welcome to RemNewz. This guide details how to interact with your personal AI ass
 
 RemNewz operates as a single Telegram bot presenting three specialized personas:
 
-- **Newzy (The News & Intelligence Scout):** Delivers twice-daily digests summarizing trending open-source projects, Hacker News discussions, and RSS articles using your configured AI provider.
-- **Remzy (The NLP Task Master):** Converts natural language into structured to-dos, manages your task lifecycle, and delivers non-spam deadline alerts.
-- **Helpzy (The Configuration Specialist):** Allows you to manage your settings, timezone, content preferences, and Supergroup topic routing directly within Telegram.
+- **Newzy (The News & Intelligence Scout):** Dispatches daily morning digests (08:00 UTC) and on-demand news syntheses summarizing high-impact trending open-source projects, Hacker News technical discussions, and RSS articles using your configured AI provider.
+- **Remzy (The NLP Task Master):** Converts natural language into structured to-dos, manages your task lifecycle, and delivers non-spam deadline alerts (with a 24-hour snooze gap).
+- **Helpzy (The Configuration Specialist):** Allows you to manage settings, timezone, content preferences, instant news triggers, and Supergroup topic routing directly within Telegram.
 
 ---
 
@@ -233,7 +236,7 @@ Remzy scans deadlines on every execution cycle:
 
 ## 3. Helpzy: In-Chat Settings & Configuration
 
-Helpzy handles system configuration. Changes made via Helpzy are saved in `data/settings.json` and committed automatically to GitHub.
+Helpzy handles system configuration and news execution triggers. Changes made via Helpzy are saved in `data/settings.enc` (encrypted at rest) and committed automatically to GitHub.
 
 ### Command Overview (`/help`)
 
@@ -244,6 +247,48 @@ Displays a concise command reference for all available personas and features.
 ```text
 /help
 ```
+
+---
+
+### On-Demand Daily Digest (`/digest`)
+
+Triggers an immediate executive AI news digest without waiting for the scheduled 8:00 AM UTC cron. This processes your configured topics, RSS feeds, and GitHub trending repositories, synthesizes insights with your AI provider, and delivers them directly into your chat (or `#News` topic in Supergroups). Items delivered via `/digest` are marked as seen to avoid duplicate deliveries.
+
+**Syntax:**
+
+```text
+/digest
+```
+
+**What Helpzy & Newzy Return:**
+
+1. Initial confirmation: `📰 Preparing your executive digest...`
+2. Formatted news syntheses with `[ 📌 Remind Me ]`, `[ 👍 ]`, and `[ 👎 ]` buttons.
+
+---
+
+### Instant News & Keyword Search (`/news`)
+
+Fetches top news and GitHub repositories instantly. If called with a query (e.g., `/news python`, `/news local llm`), RemNewz performs a focused search across GitHub and RSS sources matching your keywords and summarizes the top 3 results. If called without arguments, it delivers a 3-item quick briefing. Items delivered via `/news` are not marked as seen, allowing them to still appear in your scheduled digest if relevant.
+
+**Syntax:**
+
+```text
+/news [keyword or topic query]
+```
+
+**Examples:**
+
+```text
+/news
+/news machine learning
+/news rust web framework
+```
+
+**What Helpzy & Newzy Return:**
+
+1. Initial confirmation: `⚡ Fetching your instant news...`
+2. Formatted item summaries matching your search query.
 
 ---
 
@@ -398,16 +443,26 @@ For full details on operational trade-offs and switching steps, see the [Reposit
 
 ## 4. Newzy: News Synthesis & Adaptive Feedback
 
-Newzy operates autonomously to discover and synthesize technical news.
+Newzy operates autonomously to discover and synthesize technical news on schedule and on demand.
 
 ### Delivery Schedule & Sources
 
-- **Schedule:** Dispatched twice daily at **8:00 AM** and **8:00 PM** in your configured local timezone.
+- **Schedule:** Dispatched daily at **8:00 AM UTC** (via `.github/workflows/digest.yml` cron `0 8 * * *`). You can also trigger a full digest anytime via the `/digest` command or perform ad-hoc keyword searches using `/news <topic>`.
 - **Sources:**
-  - Trending GitHub repositories matching your configured topics.
+  - Trending and top-starred GitHub repositories matching your configured topics.
   - Hacker News top technical submissions.
-  - Custom RSS feeds defined in `config.example.yml`.
-- **AI Processing:** Generates structured insights (*What it is*, *Why it matters*, *Relevance*) using your configured AI provider (Gemini, Groq, or OpenRouter).
+  - Custom RSS feeds defined in `config.example.yml` and dynamically managed via `/source`.
+- **AI Processing:** Generates structured insights (*What it is*, *Why it matters*, *Relevance*) using your configured AI provider (Gemini, Groq, or OpenRouter) with deterministic markdown fallback if no AI key is provided.
+
+### Quality Thresholds & Curation
+
+To ensure your digest delivers genuinely impactful software and prevents noise:
+
+- **Past 7 Days:** Repositories created in the last 7 days must have at least **250 stars**.
+- **Past 30 Days:** Repositories created in the last 30 days must have at least **1,200 stars**.
+- **Fallback Top Repositories:** Active projects in topic areas must have at least **50 stars**.
+- **RSS Feeds:** Fetches and processes the top 10 articles per configured RSS source.
+- **Deduplication:** Delivered items are recorded in `data/seen.enc` with a 21-day retention window (capped at 1,500 entries) to guarantee you never receive the same news twice.
 
 ### Interactive Feedback
 
@@ -416,7 +471,7 @@ Each digest item includes interactive feedback buttons:
 - `[ 👍 ]`: Increases the preference weight for this item's topic tags.
 - `[ 👎 ]`: Decreases the preference weight for this item's topic tags.
 
-RemNewz records these preferences in `data/settings.json`. Over time, the ranking engine automatically promotes topics you enjoy and suppresses topics you dislike.
+RemNewz records these preferences in `data/settings.enc` (encrypted at rest). Over time, the ranking engine automatically promotes topics you enjoy and suppresses topics you dislike.
 
 ---
 
@@ -564,29 +619,45 @@ If `TELEGRAM_CHAT_ID` is set to a Supergroup ID, any member inside that group ca
 
 ### How do I manually trigger a news digest?
 
-1. Open your repository on GitHub.
-2. Go to the **Actions** tab.
-3. Select **Newzy Digest** on the left menu.
-4. Click **Run workflow** -> **Run workflow**.
+There are two ways:
+
+1. **Directly in Telegram (Easiest):** Simply send `/digest` to your bot in any authorized chat or `#News` topic. The bot will immediately reply and synthesize your daily digest.
+2. **From GitHub Actions:**
+   - Go to your repository's **Actions** tab on GitHub.
+   - Select **Newzy Digest** on the left menu.
+   - Click **Run workflow** $\to$ **Run workflow**.
 
 ### Why aren't command suggestions appearing when I type `/`?
 
-Telegram clients only show the command suggestion popup and menu button after the bot's commands are registered with Telegram. If you set up your own bot, you can register them in seconds via **@BotFather**:
+Telegram clients only show the command suggestion popup and menu button after the bot's commands are registered with Telegram API. You have two options to register them:
+
+#### Option 1: Run the Automated GitHub Action (Recommended)
+
+1. Go to your repository's **Actions** tab on GitHub.
+2. Select **Register Bot Commands** in the left sidebar.
+3. Click **Run workflow** $\to$ **Run workflow**.
+4. This runs `scripts/register_commands.py` which pushes the commands across all 4 Telegram scopes (`default`, `all_private_chats`, `all_group_chats`, and `all_chat_administrators`).
+
+#### Option 2: Register via @BotFather
 
 1. Message **@BotFather** on Telegram and send `/setcommands`.
 2. Choose your bot.
-3. Paste the following command list:
+3. Paste the complete command list:
 
    ```text
+   digest - Get your daily AI news digest now
+   news - Instant news & search (e.g. /news python)
    todo - Add a task (e.g. /todo Read docs by 5pm)
    list - View active tasks
    done - Mark task completed (e.g. /done abc1234)
    remove - Delete task permanently
    history - View recently completed tasks
+   source - Manage news sources & RSS feeds
    config - Settings, timezones & topic binding
    help - Show command reference & help
    ```
 
-4. If commands were recently registered, **restart your Telegram app** or switch chats and come back to force Telegram to refresh its local command cache.
+> **Note on Client Caching:** Telegram apps (Desktop, Mobile, Web) cache bot commands locally. After registering commands, completely quit and restart your Telegram app (or open your 1-on-1 private chat with the bot and tap the `Menu` / `[ / ]` button) to force Telegram to refresh its local autocomplete cache.
 
 ---
+
