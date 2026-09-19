@@ -21,11 +21,14 @@ if not TOKEN:
 API_URL = f"https://api.telegram.org/bot{TOKEN}/setMyCommands"
 
 COMMANDS = [
+    {"command": "digest", "description": "Get your daily AI news digest now"},
+    {"command": "news", "description": "Instant news & search (e.g. /news python)"},
     {"command": "todo", "description": "Add a task (e.g. /todo Read docs by 5pm)"},
     {"command": "list", "description": "View active tasks"},
     {"command": "done", "description": "Mark task completed (e.g. /done abc1234)"},
     {"command": "remove", "description": "Delete task permanently"},
     {"command": "history", "description": "View recently completed tasks"},
+    {"command": "source", "description": "Manage news sources & RSS feeds"},
     {"command": "config", "description": "Settings, timezones & topic binding"},
     {"command": "help", "description": "Show command reference & help"}
 ]

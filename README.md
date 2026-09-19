@@ -72,12 +72,15 @@ RemNewz features three built-in personas: **Remzy** (Tasks), **Helpzy** (Configu
 - `/done <id>` - Mark a task complete and archive it.
 - `/remove <id>` - Permanently delete a task.
 - `/history` - View recently completed tasks.
-- `/config` - View and manage dynamic settings (timezone, style, topics, forum routing).
+- `/source` - View, add (`/source add <url> [label]`), or remove news/RSS feed sources.
+- `/config` - View and manage dynamic settings (timezone, style, topics, news limits, forum routing).
 - `/help` - Display command summary.
 
 For a full reference of commands, natural language examples, and Supergroup topic routing instructions, see the [RemNewz User Guide](docs/user_guide.md).
 
 ## Advanced Configuration: Private Repositories & Webhooks
+
+Depending on whether your repository is **Public** or **Private**, GitHub Actions limits differ. For detailed comparisons and a step-by-step checklist on switching modes safely, see the [Repository Modes Guide](docs/repo_modes_guide.md).
 
 If you are running a Private repository and require instantaneous chat replies without depleting your Action minutes, it is recommended to deploy a Cloudflare Worker. This worker acts as a webhook proxy, triggering a lightweight GitHub `repository_dispatch` event only when a message is received.
 

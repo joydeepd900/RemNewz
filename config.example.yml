@@ -16,6 +16,16 @@ topics:
 # Common options: "sarcastic", "bulleted", "professional", "ELI5"
 digest_style: "sarcastic"
 
+# Maximum news items to deliver in each digest (1-20)
+# You can also change this in chat via: /config set_limit 5
+news_limit: 5
+
+# RSS and News Feeds
+# Add or remove these anytime in Telegram via: /source add <url> [label] or /source remove <num>
+rss_feeds:
+  - url: "https://news.ycombinator.com/rss"
+    label: "Hacker News"
+
 # Telegram Supergroup Topic Routing (Phase 5)
 # If RemNewz is in a Telegram Forum supergroup, you can route messages to specific topics.
 # Use the Helpzy commands `/config bind_news` or `/config bind_tasks` within a topic 

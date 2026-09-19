@@ -22,6 +22,7 @@ from dotenv import load_dotenv
 # Load .env for local development
 load_dotenv()
 
+from engine.store import load_data
 from engine.time_utils import now_local, format_datetime
 from notifier.telegram import send_message, build_inline_keyboard, resolve_topic_id, resolve_supergroup_id
 from fetchers.github_repos import fetch_github_repos
@@ -42,10 +43,34 @@ def load_config() -> dict:
     with open(path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f) or {}
 
-def main():
-    print("[main_digest] Starting RemNewz digest pipeline (Phase 1)...")
+def run_digest(chat_id=None, message_thread_id=None, max_items=None, mark_seen=True, query=None) -> int:
+    print("[main_digest] Starting RemNewz digest pipeline...")
     
     config = load_config()
+    settings = load_data("settings", {})
+    
+    # Merge dynamic overrides from settings.enc into config
+    if "topics" in settings:
+        config["topics"] = settings["topics"]
+    if "digest_style" in settings:
+        config["digest_style"] = settings["digest_style"]
+        
+    # If query is provided (e.g. via /news), override topics to just that query
+    if query:
+        config["topics"] = [query]
+        config["keywords"] = []
+        
+    # Merge custom RSS feeds
+    base_feeds = config.get("rss_feeds", []) or []
+    custom_feeds = settings.get("rss_feeds", []) or []
+    seen_feed_urls = {f.get("url") for f in base_feeds if isinstance(f, dict) and "url" in f}
+    combined_feeds = list(base_feeds)
+    for cf in custom_feeds:
+        if isinstance(cf, dict) and cf.get("url") and cf.get("url") not in seen_feed_urls:
+            combined_feeds.append(cf)
+            seen_feed_urls.add(cf.get("url"))
+    config["rss_feeds"] = combined_feeds
+
     dedup = DedupManager()
     
     ai_provider = os.environ.get("AI_PROVIDER", "none")
@@ -56,7 +81,8 @@ def main():
     print("[main_digest] Fetching items from sources...")
     all_items = []
     all_items.extend(fetch_github_repos(config))
-    all_items.extend(fetch_rss_feeds(config))
+    if not query:
+        all_items.extend(fetch_rss_feeds(config))
     
     # 2. Dedup and limit
     unseen_items = []
@@ -64,17 +90,33 @@ def main():
         if not dedup.is_seen(item["id"]):
             unseen_items.append(item)
             
-    # Optional: limit the number of items per digest to avoid spamming
-    max_digest_items = 5
+    # Configurable news limit per digest (default: 5, overridden by max_items)
+    max_digest_items = max_items if max_items is not None else int(settings.get("news_limit", config.get("news_limit", 5)))
     items_to_process = unseen_items[:max_digest_items]
     
     print(f"[main_digest] Found {len(all_items)} total items, {len(unseen_items)} unseen. Processing top {len(items_to_process)}.")
     
     if not items_to_process:
         print("[main_digest] No new items to send. Exiting.")
-        dedup.prune()
+        if mark_seen:
+            dedup.prune()
         return 0
         
+    # Destination Routing Safety
+    target_chat = chat_id
+    target_thread = message_thread_id
+    
+    if target_chat is None:
+        # Running via automated cron
+        news_topic_id = resolve_topic_id("news")
+        supergroup_id = resolve_supergroup_id()
+        if supergroup_id and news_topic_id is not None:
+            target_chat = supergroup_id
+            target_thread = news_topic_id
+        else:
+            target_chat = os.environ.get("TELEGRAM_CHAT_ID")
+            target_thread = None
+            
     # 3. Process and send each item
     for item in items_to_process:
         print(f"[main_digest] Synthesizing: {item['title']}...")
@@ -94,21 +136,23 @@ def main():
         reply_markup = build_inline_keyboard([buttons])
         
         print(f"[main_digest] Sending to Telegram: {item['title']}...")
-        news_topic_id = resolve_topic_id("news")
-        supergroup_id = resolve_supergroup_id()
-        target_chat = supergroup_id if (supergroup_id and news_topic_id is not None) else None
-        responses = send_message(msg_text, reply_markup=reply_markup, chat_id=target_chat, message_thread_id=news_topic_id)
+        responses = send_message(msg_text, reply_markup=reply_markup, chat_id=target_chat, message_thread_id=target_thread)
         
         # Check if successful
         if responses and responses[-1].get("ok"):
-            dedup.mark_seen(item["id"])
+            if mark_seen:
+                dedup.mark_seen(item["id"])
         else:
             print(f"[main_digest] Failed to send {item['title']}: {responses}")
             
     # 4. Cleanup
-    dedup.prune()
+    if mark_seen:
+        dedup.prune()
     print("[main_digest] Digest pipeline complete.")
     return 0
+
+def main():
+    return run_digest()
 
 if __name__ == "__main__":
     sys.exit(main())

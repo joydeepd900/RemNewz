@@ -199,3 +199,37 @@ def _deterministic_task_fallback(text: str, user_tz: str) -> dict:
         "due_at": due_at,
         "priority": "normal"
     }
+
+def normalize_topic_to_slug(topic: str, provider: str, model: str) -> str:
+    """
+    Convert a user tech topic into a valid, canonical GitHub topic slug using AI.
+    """
+    if provider.lower() == "none" or not model:
+        return _deterministic_slug_fallback(topic)
+
+    prompt = f"Convert this user tech topic into a valid, canonical GitHub topic slug (lowercase, alphanumeric and hyphens only, max 30 chars). Input: {topic}. Output ONLY the slug."
+
+    try:
+        if provider.lower() == "gemini":
+            raw_output = _call_gemini(prompt, model)
+        elif provider.lower() == "openrouter":
+            raw_output = _call_openrouter(prompt, model)
+        elif provider.lower() == "groq":
+            raw_output = _call_groq(prompt, model)
+        else:
+            return _deterministic_slug_fallback(topic)
+            
+        slug = raw_output.strip().lower()
+        # Keep only alphanumeric and hyphens, limit to 30 chars
+        slug = re.sub(r'[^a-z0-9\-]', '', slug)[:30]
+        return slug or _deterministic_slug_fallback(topic)
+    except Exception as e:
+        print(f"[ai_client] Slug normalization failed ({e}). Using fallback.")
+        return _deterministic_slug_fallback(topic)
+
+def _deterministic_slug_fallback(topic: str) -> str:
+    """Regex fallback for topic slug normalization."""
+    slug = topic.lower()
+    slug = re.sub(r'[^a-z0-9\s\-]', '', slug)
+    slug = re.sub(r'\s+', '-', slug)
+    return slug[:30].strip('-')

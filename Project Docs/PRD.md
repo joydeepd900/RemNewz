@@ -72,7 +72,7 @@ RemNewz operates as a single Telegram bot presenting three specialized personas 
 
 - **FR1 — Multi-Source Ingestion:** Fetch trending/new GitHub repositories (via GitHub API) and tech/AI news from configured RSS feeds and Hacker News.
 - **FR2 — Pluggable AI Synthesis:** Send candidate items to a configurable AI engine (Google Gemini, OpenRouter, or Groq) with user-selectable model strings (`AI_MODEL`) to extract key innovations, practical takeaways, and relevance.
-- **FR3 — Deduplication & Pruning:** Compare candidates against `data/seen.json`. Auto-prune entries older than **14 days** or cap history to **1,000 items** to maintain high performance.
+- **FR3 — Deduplication & Pruning:** Compare candidates against `data/seen.json`. Auto-prune entries older than **21 days** or cap history to **1,500 items** to maintain high performance.
 - **FR4 — Twice-Daily Scheduled Delivery:** Deliver digests twice daily at **8:00 AM and 8:00 PM** local time (customizable).
 - **FR5 — Interactive Action Buttons & Feedback Loop:** Attach an inline Telegram button (`[ 📌 Remind Me ]`) to each digest item to bridge directly into Remzy, along with `[ 👍 ]` and `[ 👎 ]` buttons to train feed preferences.
 - **FR6 — Zero-Key Graceful Fallback:** If no AI API key is configured, fall back to clean, deterministic markdown/HTML link summaries.

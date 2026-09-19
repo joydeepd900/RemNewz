@@ -6,15 +6,19 @@ from datetime import datetime, timedelta, timezone
 from engine.dedup import DedupManager
 from engine.ai_client import _deterministic_fallback, synthesize_item
 
+from unittest.mock import patch
+
 class TestDedupManager(unittest.TestCase):
     def setUp(self):
-        # Create a temporary directory and file for tests
-        self.test_dir = tempfile.TemporaryDirectory()
-        self.test_file = os.path.join(self.test_dir.name, "seen_test.json")
-        self.dedup = DedupManager(file_path=self.test_file)
+        self.load_patcher = patch('engine.dedup.load_data', return_value={})
+        self.save_patcher = patch('engine.dedup.save_data')
+        self.mock_load = self.load_patcher.start()
+        self.mock_save = self.save_patcher.start()
+        self.dedup = DedupManager()
 
     def tearDown(self):
-        self.test_dir.cleanup()
+        self.load_patcher.stop()
+        self.save_patcher.stop()
 
     def test_mark_and_check_seen(self):
         self.assertFalse(self.dedup.is_seen("item1"))
@@ -23,7 +27,7 @@ class TestDedupManager(unittest.TestCase):
 
     def test_prune_old_items(self):
         # Add an old item directly to internal dict to bypass datetime.now() in mark_seen
-        old_time = (datetime.now(timezone.utc) - timedelta(days=20)).isoformat()
+        old_time = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
         self.dedup.seen_items["old_item"] = old_time
         
         # Add a new item
@@ -36,19 +40,19 @@ class TestDedupManager(unittest.TestCase):
         self.assertTrue(self.dedup.is_seen("new_item"))
 
     def test_max_items_limit(self):
-        # Add 1005 items
-        for i in range(1005):
+        # Add 1505 items
+        for i in range(1505):
             # slightly varied timestamps to ensure sorting
-            ts = (datetime.now(timezone.utc) - timedelta(seconds=1005-i)).isoformat()
+            ts = (datetime.now(timezone.utc) - timedelta(seconds=1505-i)).isoformat()
             self.dedup.seen_items[f"item_{i}"] = ts
             
         self.dedup.prune()
         
-        self.assertEqual(len(self.dedup.seen_items), 1000)
+        self.assertEqual(len(self.dedup.seen_items), 1500)
         # The oldest items (item_0 to item_4) should be pruned
         self.assertFalse(self.dedup.is_seen("item_0"))
         # The newest items should be kept
-        self.assertTrue(self.dedup.is_seen("item_1004"))
+        self.assertTrue(self.dedup.is_seen("item_1504"))
 
 
 class TestAIClient(unittest.TestCase):

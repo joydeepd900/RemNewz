@@ -50,7 +50,7 @@ Read this before writing code or making architectural adjustments. These rules a
 ## 6. Data Integrity & Retention
 - **Atomic File Writes:** When writing JSON or encrypted state, write to a temporary file first and atomically replace the destination file.
 - **Retention Ceilings:**
-  - `data/seen.json`: Prune entries older than **14 days** or cap at **1,000 entries** on every digest run.
+  - `data/seen.json`: Prune entries older than **21 days** or cap at **1,500 entries** on every digest run.
   - `data/archive_todos.json`: Cap completed tasks at the **last 50 items**.
   - `data/settings.json`: Track positive/negative tag weights bounded within $[-10, +10]$ to avoid preference skew.
 - **Schema Validation:** Ensure data files are validated before saving. A corrupt payload must never overwrite a valid state file.

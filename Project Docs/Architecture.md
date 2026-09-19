@@ -12,7 +12,7 @@ RemNewz is a serverless, dual-workflow architecture powered by GitHub Actions, c
 graph TD
     subgraph GitHub Actions Scheduled Environment
         DW[digest.yml<br/>8:00 AM & 8:00 PM] -->|Fetch Repos & Feeds| FEAT[Fetchers: GitHub / RSS / HN]
-        FEAT -->|Filter Candidates & Apply Weights| SEEN[data/seen.json<br/>14d / 1000 Cap]
+        FEAT -->|Filter Candidates & Apply Weights| SEEN[data/seen.json<br/>21d / 1500 Cap]
         FEAT -->|Synthesize Insights| AI[AI Engine: Pluggable Multi-Provider<br/>Gemini / OpenRouter / Groq]
         AI -->|Format HTML & Buttons| NEWZY[Persona: Newzy Digest]
         NEWZY -->|sendMessage| TG[Telegram Servers]
@@ -54,7 +54,7 @@ remnewz/
 ├── config.example.yml              # Base template configuration (topics, feeds, timezone, style)
 ├── data/
 │   ├── .gitkeep
-│   ├── seen.json                   # Deduplication history (auto-pruned: 14 days / 1000 items)
+│   ├── seen.json                   # Deduplication history (auto-pruned: 21 days / 1500 items)
 │   ├── todos.json                  # Active tasks (or todos.enc if encrypted)
 │   ├── archive_todos.json          # Completed tasks (capped at 50, or archive_todos.enc)
 │   ├── settings.json               # Dynamic user overrides set via Helpzy & feedback weights

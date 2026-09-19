@@ -26,8 +26,8 @@ def fetch_rss_feeds(config: dict) -> list:
         try:
             parsed = feedparser.parse(url)
             
-            # Take top 3 from each feed to avoid overwhelming
-            for entry in parsed.entries[:3]:
+            # Take top 20 from each feed to allow Deduplication manager to find fresh unseen stories
+            for entry in parsed.entries[:20]:
                 items.append({
                     "source": label,
                     "id": entry.get("id", entry.get("link")),

@@ -3,11 +3,11 @@ import json
 from datetime import datetime, timedelta, timezone
 from engine.store import load_data, save_data
 
-MAX_ITEMS = 1000
-RETENTION_DAYS = 14
+MAX_ITEMS = 1500
+RETENTION_DAYS = 21
 
 class DedupManager:
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         self.seen_items = {}
         self._load()
 
@@ -33,7 +33,7 @@ class DedupManager:
         self._save()
 
     def prune(self):
-        """Prune old items based on retention policy (14 days or 1000 max items)."""
+        """Prune old items based on retention policy (21 days or 1500 max items)."""
         if not self.seen_items:
             return
 

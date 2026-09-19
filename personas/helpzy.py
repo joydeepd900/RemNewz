@@ -2,9 +2,11 @@ import os
 import json
 from notifier.telegram import send_message
 from engine.store import load_data, save_data
+from engine.ai_client import normalize_topic_to_slug
+from main_digest import run_digest
 
 class Helpzy:
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         self.settings = {}
         self._load()
 
@@ -16,6 +18,12 @@ class Helpzy:
             save_data("settings", self.settings)
         except Exception as e:
             print(f"[helpzy] Failed to save settings: {e}")
+
+    def _get_workflow_edit_url(self, workflow_name: str = "commands.yml") -> str:
+        repo = os.environ.get("GITHUB_REPOSITORY")
+        if repo:
+            return f"https://github.com/{repo}/edit/main/.github/workflows/{workflow_name}"
+        return f"https://github.com/YOUR_USERNAME/YOUR_REPO/edit/main/.github/workflows/{workflow_name}"
 
     def handle_command(self, text: str, message_thread_id: int = None, chat_id: str = None) -> bool:
         """Process a Helpzy command. Returns True if handled."""
@@ -29,20 +37,61 @@ class Helpzy:
         if cmd == "/help":
             self._send_help(message_thread_id, chat_id=chat_id)
             return True
+
+        if cmd in ["/source", "/sources"]:
+            self._handle_source_command(args, message_thread_id, chat_id)
+            return True
+            
+        if cmd == "/digest":
+            send_message("📰 Preparing your executive digest...", chat_id=chat_id, message_thread_id=message_thread_id)
+            run_digest(chat_id=chat_id, message_thread_id=message_thread_id, mark_seen=True)
+            return True
+            
+        if cmd == "/news":
+            send_message("⚡ Fetching your instant news...", chat_id=chat_id, message_thread_id=message_thread_id)
+            if args:
+                query = " ".join(args)
+                run_digest(chat_id=chat_id, message_thread_id=message_thread_id, max_items=3, mark_seen=False, query=query)
+            else:
+                run_digest(chat_id=chat_id, message_thread_id=message_thread_id, max_items=3, mark_seen=False)
+            return True
             
         if cmd == "/config":
             if not args:
                 self._send_config(message_thread_id, chat_id=chat_id)
             else:
                 subcmd = args[0].lower()
-                if subcmd == "add_topic" and len(args) > 1:
+                if subcmd in ["add_source", "add_feed"]:
+                    self._handle_source_command(["add"] + args[1:], message_thread_id, chat_id)
+                elif subcmd in ["remove_source", "remove_feed"]:
+                    self._handle_source_command(["remove"] + args[1:], message_thread_id, chat_id)
+                elif subcmd in ["sources", "feeds"]:
+                    self._handle_source_command(["list"], message_thread_id, chat_id)
+                elif subcmd in ["set_limit", "set_news_limit"] and len(args) > 1:
+                    try:
+                        limit = int(args[1])
+                        if limit < 1 or limit > 20:
+                            send_message("❌ Limit must be between 1 and 20.", chat_id=chat_id, message_thread_id=message_thread_id)
+                        else:
+                            self.settings["news_limit"] = limit
+                            self._save()
+                            send_message(f"✅ Digest news limit set to: <b>{limit}</b> items per digest.", chat_id=chat_id, message_thread_id=message_thread_id)
+                    except ValueError:
+                        send_message("❌ Limit must be a valid number.", chat_id=chat_id, message_thread_id=message_thread_id)
+                elif subcmd in ["repo_mode", "mode"]:
+                    self._send_repo_mode_info(message_thread_id, chat_id)
+                elif subcmd == "add_topic" and len(args) > 1:
                     topic = " ".join(args[1:])
+                    ai_provider = os.environ.get("AI_PROVIDER", "none")
+                    ai_model = os.environ.get("AI_MODEL", "")
+                    slug = normalize_topic_to_slug(topic, ai_provider, ai_model)
+                    
                     topics = self.settings.get("topics", [])
-                    if topic not in topics:
-                        topics.append(topic)
+                    if slug not in topics:
+                        topics.append(slug)
                     self.settings["topics"] = topics
                     self._save()
-                    send_message(f"✅ Added topic: <b>{topic}</b>", chat_id=chat_id, message_thread_id=message_thread_id)
+                    send_message(f"✅ Added topic: <b>{topic}</b> (canonical slug: <code>{slug}</code>)", chat_id=chat_id, message_thread_id=message_thread_id)
                 elif subcmd == "remove_topic" and len(args) > 1:
                     topic = " ".join(args[1:])
                     topics = self.settings.get("topics", [])
@@ -111,6 +160,120 @@ class Helpzy:
             
         return False
 
+    def _handle_source_command(self, args: list, message_thread_id: int = None, chat_id: str = None):
+        """Handle /source [add|remove|list] commands."""
+        feeds = list(self.settings.get("rss_feeds", []))
+        
+        if not args or args[0].lower() in ["list", "show"]:
+            # List current sources
+            topics = self.settings.get("topics", [])
+            lines = ["📡 <b>Active News Sources</b>\n"]
+            
+            lines.append("<b>RSS & News Feeds:</b>")
+            if feeds:
+                for idx, feed in enumerate(feeds, start=1):
+                    label = feed.get("label", "Feed")
+                    url = feed.get("url", "")
+                    lines.append(f"  {idx}. <b>{label}</b>\n     <code>{url}</code>")
+            else:
+                lines.append("  <i>No custom RSS feeds configured. Using default template feeds.</i>")
+                
+            lines.append("\n<b>GitHub Topics:</b>")
+            if topics:
+                for topic in topics:
+                    lines.append(f"  • <code>{topic}</code>")
+            else:
+                lines.append("  <i>Using default topics from config template.</i>")
+                
+            lines.append("\n<b>Commands:</b>")
+            lines.append("• <code>/source add &lt;url&gt; [label]</code> — Add RSS source")
+            lines.append("• <code>/source remove &lt;num or url&gt;</code> — Remove RSS source")
+            lines.append("• <code>/config add_topic &lt;topic&gt;</code> — Add GitHub topic")
+            lines.append("• <code>/config remove_topic &lt;topic&gt;</code> — Remove GitHub topic")
+            
+            send_message("\n".join(lines), chat_id=chat_id, message_thread_id=message_thread_id)
+            return
+
+        subcmd = args[0].lower()
+        if subcmd == "add":
+            if len(args) < 2:
+                send_message("❌ Usage: <code>/source add &lt;url&gt; [label]</code>", chat_id=chat_id, message_thread_id=message_thread_id)
+                return
+            url = args[1].strip()
+            if not url.startswith(("http://", "https://")):
+                send_message("❌ Source URL must start with <code>http://</code> or <code>https://</code>.", chat_id=chat_id, message_thread_id=message_thread_id)
+                return
+            
+            # Label
+            if len(args) > 2:
+                label = " ".join(args[2:]).strip()
+            else:
+                # Infer label from domain
+                try:
+                    domain = url.split("/")[2].replace("www.", "")
+                    label = domain.split(".")[0].capitalize()
+                except Exception:
+                    label = "RSS Feed"
+                    
+            # Check duplicates
+            for f in feeds:
+                if f.get("url") == url:
+                    send_message(f"⚠️ Source already exists as <b>{f.get('label')}</b>.", chat_id=chat_id, message_thread_id=message_thread_id)
+                    return
+
+            feeds.append({"url": url, "label": label})
+            self.settings["rss_feeds"] = feeds
+            self._save()
+            send_message(f"✅ Added RSS source: <b>{label}</b>\n<code>{url}</code>", chat_id=chat_id, message_thread_id=message_thread_id)
+
+        elif subcmd == "remove":
+            if len(args) < 2:
+                send_message("❌ Usage: <code>/source remove &lt;number or url&gt;</code>", chat_id=chat_id, message_thread_id=message_thread_id)
+                return
+            target = args[1].strip()
+            removed_label = None
+
+            # Try removing by index first
+            if target.isdigit():
+                idx = int(target) - 1
+                if 0 <= idx < len(feeds):
+                    removed = feeds.pop(idx)
+                    removed_label = removed.get("label", removed.get("url"))
+            else:
+                # Match by URL or label
+                new_feeds = []
+                for f in feeds:
+                    if f.get("url") == target or f.get("label", "").lower() == target.lower():
+                        removed_label = f.get("label", f.get("url"))
+                    else:
+                        new_feeds.append(f)
+                feeds = new_feeds
+
+            if removed_label:
+                self.settings["rss_feeds"] = feeds
+                self._save()
+                send_message(f"✅ Removed source: <b>{removed_label}</b>", chat_id=chat_id, message_thread_id=message_thread_id)
+            else:
+                send_message(f"❌ Could not find source matching <code>{target}</code>. Use <code>/source</code> to view list.", chat_id=chat_id, message_thread_id=message_thread_id)
+
+        else:
+            send_message("❌ Unknown /source action. Use <code>/source</code>, <code>/source add &lt;url&gt;</code>, or <code>/source remove &lt;num&gt;</code>.", chat_id=chat_id, message_thread_id=message_thread_id)
+
+    def _send_repo_mode_info(self, message_thread_id: int = None, chat_id: str = None):
+        """Explain public vs private repo differences and provide direct workflow edit link."""
+        edit_url = self._get_workflow_edit_url("commands.yml")
+        msg = (
+            "⚙️ <b>Repository Mode & Polling Schedule</b>\n\n"
+            "RemNewz runs via GitHub Actions:\n\n"
+            "• <b>Public Repositories:</b> Free unlimited Actions minutes. Polling can run every 5 minutes (<code>*/5 * * * *</code>). "
+            "<i>(Ensure ENCRYPTION_KEY is set in GitHub Secrets to keep your tasks private!)</i>\n\n"
+            "• <b>Private Repositories:</b> Free tier is capped at 2,000 minutes/month. Running every 5 minutes will exhaust quota in ~7 days! "
+            "Change schedule to <b>every 35 minutes</b> (<code>0,35 * * * *</code>), or deploy the free Cloudflare Worker for instant webhook replies.\n\n"
+            f"🔗 <b><a href=\"{edit_url}\">Click here to edit commands.yml on GitHub</a></b>\n"
+            "You can change the cron schedule and commit directly in your browser."
+        )
+        send_message(msg, chat_id=chat_id, message_thread_id=message_thread_id)
+
     def handle_feedback(self, data: str, weight: int):
         """Adjust weight of a topic based on likes/dislikes. Data is like_<topic> or dislike_<topic>."""
         parts = data.split("_", 1)
@@ -123,7 +286,6 @@ class Helpzy:
         weights[topic] = current + weight
         self.settings["tag_weights"] = weights
         self._save()
-        # No message sent, usually a toast via answerCallbackQuery handles it.
 
     def _send_help(self, message_thread_id: int = None, chat_id: str = None):
         msg = (
@@ -135,10 +297,18 @@ class Helpzy:
             "<code>/done [id]</code> — Mark a task as completed\n"
             "<code>/remove [id]</code> — Delete a task without archiving\n"
             "<code>/history</code> — Show recently completed tasks\n\n"
+            "<b>News & Sources</b>\n"
+            "<code>/source</code> — List all active news sources & topics\n"
+            "<code>/source add &lt;url&gt; [label]</code> — Add RSS/Atom feed source\n"
+            "<code>/source remove &lt;num or url&gt;</code> — Remove news source\n\n"
             "<b>Configuration</b>\n"
-            "<code>/config</code> — Show current overrides\n"
+            "<code>/config</code> — Show current settings\n"
+            "<code>/config set_limit [1-20]</code> — Max news items per digest\n"
+            "<code>/config add_topic [topic]</code> — Add GitHub trending topic\n"
+            "<code>/config remove_topic [topic]</code> — Remove GitHub topic\n"
             "<code>/config set_tz [timezone]</code> — Set timezone (e.g. Asia/Kolkata)\n"
-            "<code>/config set_style [style]</code> — Set AI digest style\n"
+            "<code>/config set_style [style]</code> — Set AI digest style (concise, technical...)\n"
+            "<code>/config repo_mode</code> — Public vs Private guide & direct cron edit link\n"
             "<code>/config bind_news</code> — Route news to current topic (Supergroups)\n"
             "<code>/config bind_tasks</code> — Route task alerts to current topic (Supergroups)\n"
             "<code>/config clear_topics</code> — Reset topic routing\n"

@@ -18,9 +18,12 @@ Welcome to RemNewz. This guide details how to interact with your personal AI ass
 3. [Helpzy: In-Chat Settings & Configuration](#3-helpzy-in-chat-settings--configuration)
    - [Command Overview](#command-overview-help)
    - [Inspect Current Configuration](#inspect-current-configuration-config)
+   - [Manage News Sources & RSS Feeds](#manage-news-sources--rss-feeds-source)
+   - [Configure Digest Item Limit](#configure-digest-item-limit-config-set_limit)
    - [Configure Timezone](#configure-timezone-config-set_tz)
    - [Configure Digest Synthesis Style](#configure-digest-synthesis-style-config-set_style)
    - [Manage Interests](#manage-interests-config-add_topic--remove_topic)
+   - [Repository Mode & Polling Schedule](#repository-mode--polling-schedule-config-repo_mode)
 4. [Newzy: News Synthesis & Adaptive Feedback](#4-newzy-news-synthesis--adaptive-feedback)
    - [Delivery Schedule & Sources](#delivery-schedule--sources)
    - [Interactive Feedback](#interactive-feedback)
@@ -335,6 +338,61 @@ Dynamically add or remove keyword tags that guide repository fetching and news f
 /config add_topic local-llm
 /config remove_topic web3
 ```
+
+---
+
+### Manage News Sources & RSS Feeds (`/source`)
+
+RemNewz allows you to add or remove RSS and Atom feeds dynamically directly from your Telegram chat, without editing configuration files or touching git.
+
+**Commands:**
+
+- `/source` or `/source list` — Displays all active RSS feeds and GitHub topics.
+- `/source add <url> [label]` — Adds an RSS or Atom feed. If no label is provided, RemNewz will automatically infer the name from the website domain.
+- `/source remove <number or url>` — Removes an active feed by either its list number or matching URL/label.
+- *Aliases:* `/config add_source`, `/config remove_source`, `/config sources`.
+
+**Examples:**
+
+```text
+/source add https://news.ycombinator.com/rss Hacker News
+/source add https://techcrunch.com/feed/
+/source remove 1
+/source remove https://techcrunch.com/feed/
+```
+
+---
+
+### Configure Digest Item Limit (`/config set_limit`)
+
+Control the maximum number of news articles synthesized and delivered in each morning and evening digest (range: 1 to 20 items).
+
+**Syntax:**
+
+```text
+/config set_limit <number>
+```
+
+**Examples:**
+
+```text
+/config set_limit 5
+/config set_limit 10
+```
+
+---
+
+### Repository Mode & Polling Schedule (`/config repo_mode`)
+
+Explains GitHub Actions free minute quotas for Public vs. Private repositories and provides a dynamic one-click link to open and edit `.github/workflows/commands.yml` directly on GitHub.
+
+**Syntax:**
+
+```text
+/config repo_mode
+```
+
+For full details on operational trade-offs and switching steps, see the [Repository Modes Guide](repo_modes_guide.md).
 
 ---
 
