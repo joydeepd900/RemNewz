@@ -298,37 +298,43 @@ This diagram details the atomic file-write pattern and Fernet symmetric encrypti
 
 ```mermaid
 flowchart TD
-    subgraph Memory["Application Memory"]
-        OBJ[Python Dict / List Data]
-        JSON_BYTES[JSON Serialized Bytes]
-        OBJ --> JSON_BYTES
+    subgraph DatabaseLayer["SQLite Runtime Layer (engine/store.py)"]
+        SQLITE_DB[("Local SQLite Database<br/>data/remnewz.db")]
+        TASKS_TBL["Table: tasks<br/>(id, status, data, completed_at)"]
+        KV_TBL["Table: kv_store<br/>(key, value JSON: settings, seen, cursor)"]
+        
+        TASKS_TBL --- SQLITE_DB
+        KV_TBL --- SQLITE_DB
+        
+        CLOSE["Pipeline Exit (close_db)<br/>1. Commit & Close Connection<br/>2. Read DB Binary Bytes"]
+        SQLITE_DB --> CLOSE
     end
 
     subgraph CryptoLayer["engine/crypto.py (CryptoManager)"]
         CHK_KEY{ENCRYPTION_KEY<br/>Set & Valid?}
         CHK_KEY -- Invalid Format --> FAIL_SECURE[Raise RuntimeError<br/>Fail Securely & Halt]
-        CHK_KEY -- Missing / Empty --> PLAIN_MODE[Plaintext JSON Mode]
-        CHK_KEY -- Valid Fernet Key --> ENC_MODE[AES-128-CBC + HMAC-SHA256]
+        CHK_KEY -- Missing / Empty --> PLAIN_MODE[Plaintext Mode<br/>Retain remnewz.db]
+        CHK_KEY -- Valid Fernet Key --> ENC_MODE[encrypt_bytes<br/>AES-128-CBC + HMAC-SHA256]
         
-        JSON_BYTES --> CHK_KEY
-        ENC_MODE --> CIPHER_BYTES[Encrypted Ciphertext Bytes]
+        CLOSE --> CHK_KEY
+        ENC_MODE --> CIPHER_BYTES[Encrypted Database Binary]
     end
 
     subgraph AtomicIO["engine/store.py (_atomic_write_file)"]
-        TMP_FILE["Write to Temporary File<br/>(path.tmp)"]
-        FSYNC["Flush Buffer & os.fsync(fd)<br/>Ensure bytes written to physical storage"]
-        OS_REPLACE["Atomic Replace<br/>os.replace(path.tmp, target_path)"]
+        TMP_FILE["Write to Temporary File<br/>(remnewz.db.enc.tmp)"]
+        FSYNC["Flush Buffer & os.fsync(fd)<br/>Ensure bytes written to physical disk"]
+        OS_REPLACE["Atomic Replace<br/>os.replace(tmp, remnewz.db.enc)"]
+        VERIFIED_PURGE["Verified Plaintext Purge<br/>Remove local data/remnewz.db<br/>Zero Leaks"]
         
         CIPHER_BYTES --> TMP_FILE
-        PLAIN_MODE --> TMP_FILE
         TMP_FILE --> FSYNC
         FSYNC --> OS_REPLACE
+        OS_REPLACE --> VERIFIED_PURGE
     end
 
     subgraph DiskStorage["Repository Storage (Dedicated 'data' Branch via Worktree)"]
-        OS_REPLACE --> DATA_ENC["Target File: data/*.enc<br/>(todos, archive_todos, settings, seen, last_update_id)"]
-        OS_REPLACE --> DATA_JSON["Target File: data/*.json<br/>(Plaintext Mode fallback)"]
-        GITIGNORE[".gitignore Shielding on 'main'<br/>• Permanently ignores /data directory<br/>• Zero sync commits on 'main'"]
+        OS_REPLACE --> DATA_ENC["Target File: data/remnewz.db.enc<br/>(Single Unified Encrypted Database)"]
+        GITIGNORE[".gitignore Shielding<br/>• Blocks *.db, *.sqlite3, *.tmp, /data<br/>• Guarantees zero plaintext database leaks"]
     end
 ```
 

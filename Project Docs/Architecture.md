@@ -12,7 +12,7 @@ RemNewz is a serverless, dual-workflow architecture powered by GitHub Actions, c
 graph TD
     subgraph GitHub Actions Scheduled Environment
         DW[digest.yml<br/>8:00 AM UTC & On-Demand] -->|Fetch Repos & Feeds| FEAT[Fetchers: GitHub / RSS / HN]
-        FEAT -->|Filter Candidates & Apply Weights| SEEN[data/seen.enc<br/>21d / 1500 Cap]
+        FEAT -->|Filter Candidates & Apply Weights| SEEN[kv_store in remnewz.db.enc<br/>21d / 1500 Cap]
         FEAT -->|Synthesize Insights| AI[AI Engine: Pluggable Multi-Provider<br/>Gemini / OpenRouter / Groq]
         AI -->|Format HTML & Buttons| NEWZY[Persona: Newzy Digest]
         NEWZY -->|sendMessage| TG[Telegram Servers]
@@ -28,22 +28,21 @@ graph TD
         CHECKER -->|Smart Nudge to Origin Topic| TG
         NEWZY -->|Route to #News Topic| TG
         
-        REMZY -->|Mutate| STORE[Storage Subsystem<br/>Fernet Encrypted / Plain JSON]
-        HELPZY -->|Mutate| SETTINGS[data/settings.enc]
-        NEWZY_LEARN -->|Update Weights| SETTINGS
+        REMZY -->|ACID SQL Mutate| STORE[Unified SQLite Engine<br/>engine/store.py]
+        HELPZY -->|kv_store SQL Mutate| STORE
+        NEWZY_LEARN -->|Update Weights| STORE
+        STORE -->|Atomic Encryption| DB_ENC[data/remnewz.db.enc]
         
         MW[maintenance.yml<br/>Monthly Squash Cron] -->|Consolidate State Commits| SQUASH[Squash History into 1 Commit]
     end
 
     subgraph Dual-Branch Persistence Model
         GIT_MAIN[(Git Branch: 'main'<br/>Application Code & Docs<br/>Zero Bot Clutter)]
-        GIT_DATA[(Git Branch: 'data'<br/>Encrypted State Files<br/>Auto-Provisioned & Squashed)]
+        GIT_DATA[(Git Branch: 'data'<br/>Encrypted Database<br/>Auto-Provisioned & Squashed)]
         
         CW -.->|Checked out via Git Worktree| GIT_DATA
         DW -.->|Checked out via Git Worktree| GIT_DATA
-        STORE -->|Batched Commits to 'data'| GIT_DATA
-        SEEN -->|Batched Commits to 'data'| GIT_DATA
-        SETTINGS -->|Batched Commits to 'data'| GIT_DATA
+        DB_ENC -->|Batched Commits to 'data'| GIT_DATA
         SQUASH -->|Force Push 1 Snapshot Commit| GIT_DATA
     end
 
@@ -68,11 +67,7 @@ remnewz/
 ├── data/                           # In git: tracked as dedicated 'data' branch via git worktree
 │   └── __init__.py                 # On 'main': only __init__.py exists (zero personal .enc files)
 │                                   # On 'data' branch:
-│                                   # ├── seen.enc (dedup history: 21 days / 1500 items)
-│                                   # ├── todos.enc (active tasks, encrypted at rest)
-│                                   # ├── archive_todos.enc (completed tasks capped at 50)
-│                                   # ├── settings.enc (dynamic settings & feedback weights)
-│                                   # └── last_update_id.enc (update high-water mark)
+│                                   # └── remnewz.db.enc (Unified Encrypted SQLite DB: tasks, settings, seen, last_update_id)
 ├── docs/
 │   ├── user_guide.md               # User guide & command reference
 │   ├── repo_modes_guide.md         # Public vs Private repository guide
@@ -157,7 +152,7 @@ RemNewz decouples **Application Code** from **Encrypted State** through a dual-b
    - All `data/*.enc` files are untracked on `main` and ignored via `.gitignore`.
    - When a user imports or forks the template, `main` contains zero personal encrypted database files from the creator.
 2. **Dedicated `data` Branch (Serverless Database):**
-   - Encrypted state files (`todos.enc`, `archive_todos.enc`, `settings.enc`, `seen.enc`, `last_update_id.enc`) are committed exclusively to the orphan branch `data`.
+   - The unified encrypted SQLite database (`remnewz.db.enc`) is committed exclusively to the orphan branch `data`.
    - In GitHub Actions runners, the `data` branch is dynamically mounted to the local `data/` path using `git worktree add data data`.
    - Bot sync commits (`chore(sync): update tasks and settings [skip ci]`) advance **only** the `data` branch.
 3. **Template Auto-Provisioning (Zero Setup for New Users):**
@@ -167,11 +162,13 @@ RemNewz decouples **Application Code** from **Encrypted State** through a dual-b
 4. **Monthly Maintenance Squash (`maintenance.yml`):**
    - On the 1st of every month, an automated workflow squashes historical state commits on the `data` branch into a single clean snapshot commit (`chore(maintenance): monthly state consolidation [skip ci]`).
    - Keeps the repository lightweight and permanently prevents history bloat.
-5. **Encrypted Mode (Fernet / AES-128-CBC with SHA256 HMAC):**
-   - When `ENCRYPTION_KEY` is provided, `engine/crypto.py` transparently encrypts all sensitive data before disk write.
-   - Decryption occurs only in runner memory. If `ENCRYPTION_KEY` is invalid or corrupted, `CryptoManager` fails securely by raising `RuntimeError` rather than leaking plaintext.
+5. **Unified Encrypted SQLite Engine (Fernet / AES-128-CBC with SHA256 HMAC):**
+   - Consolidates tasks, settings, deduplication history, and polling cursor into a single SQLite database (`remnewz.db.enc`).
+   - On boot, `init_db()` decrypts `remnewz.db.enc` to a temporary working database and auto-migrates any legacy `.enc`/`.json` files.
+   - On pipeline exit, `close_db()` commits transactions, encrypts the database binary via `engine/crypto.py`, and securely removes the plaintext `.db` file.
+   - Plaintext `.db` and `.sqlite3` files are permanently ignored via `.gitignore` to guarantee zero data leaks.
 6. **Atomic Writes & Zero Corruption:**
-   - File writes use `_atomic_write_file`: data is flushed to `.tmp` files, synced via `os.fsync`, and atomically moved into place using `os.replace`.
+   - Database binary encryption writes use `_atomic_write_file`: encrypted bytes are written to `.tmp` files, synced via `os.fsync`, and atomically replaced via `os.replace`.
 
 
 ### 4.4 Git Concurrency & Conflict Prevention

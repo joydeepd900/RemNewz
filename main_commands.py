@@ -8,7 +8,7 @@ and allows commands.yml to persist state.
 import os
 import sys
 import json
-from engine.store import load_data, save_data
+from engine.store import load_data, save_data, init_db, close_db
 
 
 if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
@@ -35,7 +35,7 @@ def save_last_update_id(last_id: int):
     except Exception as e:
         print(f"[main_commands] Failed to save last_update_id: {e}")
 
-def main():
+def run_pipeline():
     print("[main_commands] Starting RemNewz commands pipeline (Phase 3)...")
     
     allowed_chat_id = os.environ.get("TELEGRAM_CHAT_ID", "")
@@ -132,6 +132,13 @@ def main():
     
     print("[main_commands] Pipeline complete.")
     return 0
+
+def main():
+    init_db()
+    try:
+        return run_pipeline()
+    finally:
+        close_db()
 
 if __name__ == "__main__":
     sys.exit(main())

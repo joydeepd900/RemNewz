@@ -27,10 +27,13 @@ dist/
 build/
 memory.md
 
-# Temporary Files
+# Temporary & Local Database Files (Never commit plaintext DB)
 *.tmp
+*.db
+*.sqlite3
 
 # Secure Data Directory (State is persisted exclusively on the dedicated 'data' branch)
 data/
 *.tmp
+*.db
 

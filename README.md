@@ -17,8 +17,7 @@ It also functions as a full Natural Language Processing (NLP) Task Manager. Simp
 - **Multi-Provider AI Synthesis:** Pluggable support for Gemini, Groq, or OpenRouter (with built-in fallback mechanisms).
 - **NLP Task Management:** Includes a personal assistant interface that understands natural language deadlines.
 - **Intelligent Due Checker:** Reminds you of pending tasks without overwhelming your inbox (24-hour snooze gap for overdue tasks).
-- **Supergroup Topic Routing:** Natively supports Telegram Forum Supergroups to route news digests and task alerts into dedicated topics.
-- **Privacy First (Encryption at Rest):** Automatically encrypts your tasks and settings into `.enc` files before pushing to GitHub. This allows you to securely use a free Public Repository without exposing personal data.
+- **Privacy First (Unified Encrypted SQLite Engine):** Automatically encrypts your entire database (`remnewz.db.enc`) with Fernet (AES-128-CBC) before pushing to GitHub. This enables transactional SQL task management and settings while allowing you to securely run in a free Public Repository without exposing personal data.
 - **Dedicated Data Branch & Zero Git Clutter:** Code (`main`) and state (`data`) are strictly separated. Automated state syncs never touch `main`, keeping your personal GitHub activity graph and repository history 100% clean.
 - **Automated Monthly Maintenance:** A monthly scheduled workflow (`maintenance.yml`) consolidates historical sync commits on the `data` branch down to a single clean snapshot commit.
 

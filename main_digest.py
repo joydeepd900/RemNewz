@@ -22,7 +22,7 @@ from dotenv import load_dotenv
 # Load .env for local development
 load_dotenv()
 
-from engine.store import load_data
+from engine.store import load_data, init_db, close_db
 from engine.time_utils import now_local, format_datetime
 from notifier.telegram import send_message, build_inline_keyboard, resolve_topic_id, resolve_supergroup_id
 from fetchers.github_repos import fetch_github_repos
@@ -152,7 +152,11 @@ def run_digest(chat_id=None, message_thread_id=None, max_items=None, mark_seen=T
     return 0
 
 def main():
-    return run_digest()
+    init_db()
+    try:
+        return run_digest()
+    finally:
+        close_db()
 
 if __name__ == "__main__":
     sys.exit(main())

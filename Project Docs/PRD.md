@@ -85,7 +85,7 @@ RemNewz operates as a single Telegram bot presenting three specialized personas 
 - **FR7 — Natural Language Task Parsing:** Parse commands like `/todo <text> [deadline] [priority]` using AI/NLP to extract task titles, dates, priorities, and tags.
 - **FR8 — 1-Tap News-to-Task:** Process Telegram `callback_query` updates from Newzy's inline buttons, instantly filing the news item as a pending task.
 - **FR9 — Task Listing & Filtering:** Display active tasks sorted by urgency via `/list`.
-- **FR10 — Task Lifecycle & Archiving:** Mark tasks as done (`/done <id>`) or delete them (`/remove <id>`). Automatically move completed items to `data/archive_todos.enc` capped at the **last 50 completed tasks**.
+- **FR10 — Task Lifecycle & Archiving:** Mark tasks as done (`/done <id>`) or delete them (`/remove <id>`). Automatically move completed items to status `archived` in the `tasks` SQLite table within `data/remnewz.db.enc`.
 - **FR11 — Smart Nudge Cadence (Anti-Spam):**
   - Alert once when a task reaches its due window.
   - Send at most one overdue nudge every 24 hours to prevent spamming.
@@ -95,15 +95,16 @@ RemNewz operates as a single Telegram bot presenting three specialized personas 
 
 - **FR13 — Setting Inspection:** `/config` outputs current timezone, active topics, RSS feeds, digest times, feed style, and storage encryption status.
 - **FR14 — Dynamic Adjustments:** `/config add_topic <tag>`, `/config remove_topic <tag>`, `/config set_tz <IANA_tz>`, `/config set_style <style>`, `/config set_limit <1-20>`, `/config repo_mode`.
-- **FR15 — Dynamic Overrides:** Persist chat-configured settings in `data/settings.enc` which override `config.example.yml` defaults without requiring manual YAML edits.
+- **FR15 — Dynamic Overrides:** Persist chat-configured settings in the `kv_store` table within `data/remnewz.db.enc` which override `config.example.yml` defaults without requiring manual YAML edits.
 - **FR23 — Dynamic Source Management:** Manage RSS feeds in chat via `/source add <url> [label]`, `/source remove <id/url>`, and `/source list`.
 
 ### 4.4 Security, Platform & Privacy
 
 - **FR16 — Single-User Authorization:** Verify incoming message `chat.id == TELEGRAM_CHAT_ID` or sender in group. Silently ignore any updates from unauthorized users.
 - **FR17 — Secret Isolation:** Zero secrets, tokens, or credentials in source code or git history. All credentials injected via GitHub Actions Secrets.
-- **FR18 — Dual-Branch Storage & Repo Mode Toggle:**
-  - Standardizes **Fernet encryption-at-rest** (`todos.enc`, `archive_todos.enc`, `settings.enc`, `seen.enc`) via `ENCRYPTION_KEY`. Plaintext remains the fallback if the key is omitted.
+- **FR18 — Dual-Branch Storage & Unified SQLite Engine:**
+  - Standardizes the **Unified Encrypted SQLite Engine (`data/remnewz.db.enc`)** backed by Fernet encryption-at-rest (`ENCRYPTION_KEY`). Unifies tasks, settings, deduplication (21 days / 1,500 items), and update offsets into a single transactional database.
+  - **Zero-Leak Guarantee:** Plaintext `.db`, `.sqlite3`, and `.tmp` files are permanently ignored by `.gitignore`. The database is decrypted in-memory/ephemerally during workflow execution and atomically re-encrypted before termination.
   - **Dedicated Data Branch (`data`):** Code and state are strictly separated. The `main` branch contains application code only with zero `.enc` files and permanent `.gitignore` protection, ensuring personal user profiles and contribution graphs stay clean of automated bot commits. State files are mounted at `/data` at runtime via Git Worktrees and pushed exclusively to `origin data`.
   - **Zero-Setup Auto-Provisioning:** When a user creates a new repo from the template, workflows detect the missing `data` branch and auto-provision an orphan `data` storage branch on first run.
   - **Monthly History Squashing:** A scheduled maintenance workflow (`maintenance.yml`, `0 0 1 * *`) periodically squashes accumulated state sync commits on the `data` branch into a single clean snapshot commit.

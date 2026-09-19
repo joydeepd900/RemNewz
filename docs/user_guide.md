@@ -596,9 +596,10 @@ RemNewz runs serverlessly on GitHub Actions. Depending on your repository visibi
 - **Allowlist Enforcement:** RemNewz validates incoming messages against `TELEGRAM_CHAT_ID`. Messages from unauthorized direct messages or unrecognized chats are rejected.
 - **Supergroups vs. Personal Use:** When deployed in a Telegram Supergroup, all members in that authorized group can issue commands and receive updates (which acts as a shared team workspace for tasks and collective news updates). If you are using the Supergroup feature strictly for personal use, ensure no other members are added to the group (or restrict member permissions). User-level authorization for sensitive commands is planned for future releases.
 - **Secret Isolation:** API tokens, chat IDs, and encryption keys are stored exclusively in GitHub Actions Secrets and are never committed to git.
-- **Client-Side Encryption:** When `ENCRYPTION_KEY` is set, all tasks, archives, settings, and deduplication hashes are encrypted at rest using AES-128-CBC Fernet.
-- **Dedicated Data Branch & Zero Git Clutter:** RemNewz isolates all encrypted state files onto an orphan `data` branch. The `main` branch contains 100% clean application code with zero bot sync commits. This ensures your GitHub profile activity, contribution graph, and repository history remain uncluttered.
+- **Unified Encrypted SQLite Engine:** When `ENCRYPTION_KEY` is set, all active tasks, completed archives, settings, deduplication history, and polling cursors are consolidated into a single SQLite database (`remnewz.db.enc`) encrypted at rest using AES-128-CBC Fernet. The database is decrypted ephemerally during runner execution and atomically re-encrypted upon script completion with fail-secure validation.
+- **Dedicated Data Branch & Zero Git Clutter:** RemNewz isolates the encrypted database onto an orphan `data` branch. The `main` branch contains 100% clean application code with zero bot sync commits. This ensures your GitHub profile activity, contribution graph, and repository history remain uncluttered.
 - **Automated Monthly Maintenance:** A scheduled maintenance workflow (`maintenance.yml`) runs on the 1st of every month to squash accumulated commits on the `data` branch into a single clean snapshot commit.
+- **Planned Expansions:** Enabled by the unified SQLite architecture, upcoming commands will include `/search <query>` (fast full-text search across active and archived tasks) and `/stats` (completion metrics, velocity, and deadline compliance reports).
 
 ---
 
