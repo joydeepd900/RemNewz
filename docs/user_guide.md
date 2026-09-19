@@ -596,7 +596,9 @@ RemNewz runs serverlessly on GitHub Actions. Depending on your repository visibi
 - **Allowlist Enforcement:** RemNewz validates incoming messages against `TELEGRAM_CHAT_ID`. Messages from unauthorized direct messages or unrecognized chats are rejected.
 - **Supergroups vs. Personal Use:** When deployed in a Telegram Supergroup, all members in that authorized group can issue commands and receive updates (which acts as a shared team workspace for tasks and collective news updates). If you are using the Supergroup feature strictly for personal use, ensure no other members are added to the group (or restrict member permissions). User-level authorization for sensitive commands is planned for future releases.
 - **Secret Isolation:** API tokens, chat IDs, and encryption keys are stored exclusively in GitHub Actions Secrets and are never committed to git.
-- **Client-Side Encryption:** When `ENCRYPTION_KEY` is set, `todos.json` and `archive_todos.json` are encrypted into `todos.enc` and `archive_todos.enc` before git commits.
+- **Client-Side Encryption:** When `ENCRYPTION_KEY` is set, all tasks, archives, settings, and deduplication hashes are encrypted at rest using AES-128-CBC Fernet.
+- **Dedicated Data Branch & Zero Git Clutter:** RemNewz isolates all encrypted state files onto an orphan `data` branch. The `main` branch contains 100% clean application code with zero bot sync commits. This ensures your GitHub profile activity, contribution graph, and repository history remain uncluttered.
+- **Automated Monthly Maintenance:** A scheduled maintenance workflow (`maintenance.yml`) runs on the 1st of every month to squash accumulated commits on the `data` branch into a single clean snapshot commit.
 
 ---
 
@@ -660,4 +662,3 @@ Telegram clients only show the command suggestion popup and menu button after th
 > **Note on Client Caching:** Telegram apps (Desktop, Mobile, Web) cache bot commands locally. After registering commands, completely quit and restart your Telegram app (or open your 1-on-1 private chat with the bot and tap the `Menu` / `[ / ]` button) to force Telegram to refresh its local autocomplete cache.
 
 ---
-

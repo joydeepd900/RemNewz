@@ -27,6 +27,7 @@ graph TB
             WF_CMD["commands.yml<br/>• Webhook Dispatch<br/>• 5-min Poller (Public)<br/>• 30-min Poller (Private)"]
             WF_DIGEST["digest.yml<br/>• Scheduled Cron (08:00 UTC)<br/>• Manual workflow_dispatch"]
             WF_REG["register_commands.yml<br/>• Manual workflow_dispatch"]
+            WF_MAINT["maintenance.yml<br/>• Monthly Squash Cron (0 0 1 * *)<br/>• Consolidates 'data' to 1 Commit"]
         end
 
         subgraph CoreApp["Application Runtime (Python 3.11/3.12)"]
@@ -70,17 +71,19 @@ graph TB
         REMZY --> AI_ENGINE
     end
 
-    subgraph Persistence["Storage Subsystem (Git Repository: main)"]
+    subgraph Persistence["Dual-Branch Storage Architecture"]
         CRYPTO["CryptoManager (engine/crypto.py)<br/>AES-128-CBC Fernet Encryption"]
         STORE["Store (engine/store.py)<br/>Atomic Writes (.tmp -> replace)"]
         
-        DATA_ENC["Encrypted Data (/data)<br/>• todos.enc<br/>• archive_todos.enc<br/>• settings.enc<br/>• seen.enc<br/>• last_update_id.enc"]
+        BRANCH_MAIN["Git Branch: 'main'<br/>100% Clean Code • Zero .enc Files<br/>Permanent .gitignore for data/"]
+        BRANCH_DATA["Git Branch: 'data' (Worktree Mounted to /data)<br/>• todos.enc<br/>• archive_todos.enc<br/>• settings.enc<br/>• seen.enc<br/>• last_update_id.enc<br/>Auto-Provisioned on First Run • Monthly Squashed"]
         
+        WF_MAINT -->|"Squashes to 1 commit"| BRANCH_DATA
         REMZY <--> STORE
         HELPZY <--> STORE
         NEWZY <--> STORE
         STORE <--> CRYPTO
-        CRYPTO <--> DATA_ENC
+        CRYPTO <--> BRANCH_DATA
     end
 
     GH_DISPATCH --> WF_CMD
@@ -322,9 +325,51 @@ flowchart TD
         FSYNC --> OS_REPLACE
     end
 
-    subgraph DiskStorage["Repository Storage (/data)"]
-        OS_REPLACE --> DATA_ENC[Target File: data/*.enc]
-        OS_REPLACE --> DATA_JSON[Target File: data/*.json (Plaintext Mode)]
-        GITIGNORE[".gitignore Shielding<br/>• Ignores data/*.tmp<br/>• Ignores legacy data/*.json"]
+    subgraph DiskStorage["Repository Storage (Dedicated 'data' Branch via Worktree)"]
+        OS_REPLACE --> DATA_ENC["Target File: data/*.enc<br/>(todos, archive_todos, settings, seen, last_update_id)"]
+        OS_REPLACE --> DATA_JSON["Target File: data/*.json<br/>(Plaintext Mode fallback)"]
+        GITIGNORE[".gitignore Shielding on 'main'<br/>• Permanently ignores /data directory<br/>• Zero sync commits on 'main'"]
+    end
+```
+
+---
+
+## 7. Dual-Branch Worktree & Monthly Squash Lifecycle
+
+This diagram demonstrates how GitHub Actions mounts the dedicated `data` branch at runtime via Git Worktrees, commits state exclusively to `origin data`, auto-provisions for new template adopters, and runs monthly squash maintenance.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Runner as GitHub Actions Runner
+    participant Main as Git Branch 'main' (Code)
+    participant Data as Git Branch 'data' (Encrypted State)
+    participant Maint as Maintenance Cron (1st of Month)
+
+    Note over Runner, Main: Routine Bot Run (commands.yml / digest.yml)
+    Runner->>Main: Checkout code (fetch-depth: 0)
+    alt 'data' branch exists on origin
+        Runner->>Data: git fetch origin data:data
+        Runner->>Runner: git worktree add data data (mounts branch to /data)
+    else First Run (New Template Adopter)
+        Runner->>Runner: git worktree add --orphan -b data data
+        Runner->>Data: Push initial clean state (auto-provision)
+    end
+
+    Note over Runner: Python Pipeline Executes<br/>Reads/writes encrypted files at /data
+
+    opt State Changed
+        Runner->>Data: cd data && git add . && git commit -m "chore(sync): update..."
+        Runner->>Data: git pull --rebase origin data && git push origin data
+    end
+    Note over Main: Branch 'main' remains 100% CLEAN<br/>Zero chore commits • Zero user activity clutter
+
+    Note over Maint, Data: Monthly Squash Maintenance (maintenance.yml)
+    Maint->>Data: Check commit count
+    opt Commit count > 1
+        Maint->>Maint: git checkout --orphan temp-data
+        Maint->>Maint: git commit -m "chore(maintenance): monthly state consolidation"
+        Maint->>Data: git push --force origin data
+        Note over Data: Consolidated hundreds of sync commits<br/>into 1 single clean snapshot commit!
     end
 ```

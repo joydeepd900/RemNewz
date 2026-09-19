@@ -31,12 +31,20 @@ graph TD
         REMZY -->|Mutate| STORE[Storage Subsystem<br/>Fernet Encrypted / Plain JSON]
         HELPZY -->|Mutate| SETTINGS[data/settings.enc]
         NEWZY_LEARN -->|Update Weights| SETTINGS
+        
+        MW[maintenance.yml<br/>Monthly Squash Cron] -->|Consolidate State Commits| SQUASH[Squash History into 1 Commit]
     end
 
-    subgraph Persistence Layer (Git Repo)
-        STORE -->|Single Batched Commit & Rebase| GIT[(Git Repository: main)]
-        SEEN -->|Single Batched Commit & Rebase| GIT
-        SETTINGS -->|Single Batched Commit & Rebase| GIT
+    subgraph Dual-Branch Persistence Model
+        GIT_MAIN[(Git Branch: 'main'<br/>Application Code & Docs<br/>Zero Bot Clutter)]
+        GIT_DATA[(Git Branch: 'data'<br/>Encrypted State Files<br/>Auto-Provisioned & Squashed)]
+        
+        CW -.->|Checked out via Git Worktree| GIT_DATA
+        DW -.->|Checked out via Git Worktree| GIT_DATA
+        STORE -->|Batched Commits to 'data'| GIT_DATA
+        SEEN -->|Batched Commits to 'data'| GIT_DATA
+        SETTINGS -->|Batched Commits to 'data'| GIT_DATA
+        SQUASH -->|Force Push 1 Snapshot Commit| GIT_DATA
     end
 
     TG <===> USER((User on Phone))
@@ -54,15 +62,17 @@ remnewz/
 │   └── workflows/
 │       ├── digest.yml              # Daily scheduled digest (08:00 UTC) & manual trigger
 │       ├── commands.yml            # Batched commands (poller & webhook dispatcher)
-│       └── register_commands.yml   # Automatic 4-scope Telegram command registration
+│       ├── register_commands.yml   # Automatic 4-scope Telegram command registration
+│       └── maintenance.yml         # Monthly maintenance squashing data branch to 1 commit
 ├── config.example.yml              # Base template configuration (topics, feeds, timezone, style)
-├── data/
-│   ├── .gitkeep
-│   ├── seen.enc                    # Deduplication history (auto-pruned: 21 days / 1500 items)
-│   ├── todos.enc                   # Active tasks (encrypted at rest)
-│   ├── archive_todos.enc           # Completed tasks (capped at 50, encrypted at rest)
-│   ├── settings.enc                # Dynamic user overrides set via Helpzy & feedback weights
-│   └── last_update_id.enc          # High-water mark for Telegram updates
+├── data/                           # In git: tracked as dedicated 'data' branch via git worktree
+│   └── __init__.py                 # On 'main': only __init__.py exists (zero personal .enc files)
+│                                   # On 'data' branch:
+│                                   # ├── seen.enc (dedup history: 21 days / 1500 items)
+│                                   # ├── todos.enc (active tasks, encrypted at rest)
+│                                   # ├── archive_todos.enc (completed tasks capped at 50)
+│                                   # ├── settings.enc (dynamic settings & feedback weights)
+│                                   # └── last_update_id.enc (update high-water mark)
 ├── docs/
 │   ├── user_guide.md               # User guide & command reference
 │   ├── repo_modes_guide.md         # Public vs Private repository guide
@@ -138,17 +148,31 @@ When RemNewz is used in a Telegram Supergroup with Topics (Forums) enabled, user
 - **Origin Thread Retention:** When `/todo` is called within an unbound topic thread, Remzy stores `origin_thread_id` inside the task object. If no global `topic_tasks` is bound, Remzy delivers due notifications directly back into that specific origin thread, keeping conversation context intact.
 - **Unbound/1-on-1 Fallback:** If topic routing is not used or cleared via `/config clear_topics`, `message_thread_id` resolves to `None`, directing messages to standard 1-on-1 chat or the supergroup General channel.
 
-### 4.3 Storage & Privacy Subsystem
+### 4.3 Dual-Branch Storage & Privacy Subsystem
 
-1. **Encrypted Mode (Fernet / AES-128-CBC with SHA256 HMAC):**
-   - When `ENCRYPTION_KEY` is provided, `engine/crypto.py` transparently encrypts all sensitive data (`todos.enc`, `archive_todos.enc`, `settings.enc`, `seen.enc`, `last_update_id.enc`) before disk write.
+RemNewz decouples **Application Code** from **Encrypted State** through a dual-branch architecture:
+
+1. **Clean `main` Branch (Zero Commit Clutter):**
+   - The `main` branch contains strictly application code, documentation, and feature commits.
+   - All `data/*.enc` files are untracked on `main` and ignored via `.gitignore`.
+   - When a user imports or forks the template, `main` contains zero personal encrypted database files from the creator.
+2. **Dedicated `data` Branch (Serverless Database):**
+   - Encrypted state files (`todos.enc`, `archive_todos.enc`, `settings.enc`, `seen.enc`, `last_update_id.enc`) are committed exclusively to the orphan branch `data`.
+   - In GitHub Actions runners, the `data` branch is dynamically mounted to the local `data/` path using `git worktree add data data`.
+   - Bot sync commits (`chore(sync): update tasks and settings [skip ci]`) advance **only** the `data` branch.
+3. **Template Auto-Provisioning (Zero Setup for New Users):**
+   - When a new user instantiates the template, GitHub only copies the default `main` branch.
+   - On the very first run of `commands.yml` or `digest.yml`, the runner checks if `origin/data` exists.
+   - If not found, it automatically initializes an orphan branch `data`, pushes it to `origin data`, and mounts it without requiring any manual setup from the user.
+4. **Monthly Maintenance Squash (`maintenance.yml`):**
+   - On the 1st of every month, an automated workflow squashes historical state commits on the `data` branch into a single clean snapshot commit (`chore(maintenance): monthly state consolidation [skip ci]`).
+   - Keeps the repository lightweight and permanently prevents history bloat.
+5. **Encrypted Mode (Fernet / AES-128-CBC with SHA256 HMAC):**
+   - When `ENCRYPTION_KEY` is provided, `engine/crypto.py` transparently encrypts all sensitive data before disk write.
    - Decryption occurs only in runner memory. If `ENCRYPTION_KEY` is invalid or corrupted, `CryptoManager` fails securely by raising `RuntimeError` rather than leaking plaintext.
-2. **Atomic Writes & Zero Corruption:**
+6. **Atomic Writes & Zero Corruption:**
    - File writes use `_atomic_write_file`: data is flushed to `.tmp` files, synced via `os.fsync`, and atomically moved into place using `os.replace`.
-   - All `data/*.tmp` and `data/*.json` files are shielded in `.gitignore`.
-3. **Repository Mode Cadence Toggle:**
-   - *Public Repositories:* Unlimited Actions minutes allow high-frequency polling (**every 5 minutes**).
-   - *Private Repositories:* Scheduled at **35-minute intervals** (`0,35 * * * *`) or using free Cloudflare Worker Webhook Mode.
+
 
 ### 4.4 Git Concurrency & Conflict Prevention
 Because `digest.yml` and `commands.yml` run independently, simultaneous runs could cause git push rejections. RemNewz mitigates this through two layers:

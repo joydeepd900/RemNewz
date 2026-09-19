@@ -30,7 +30,7 @@ memory.md
 # Temporary Files
 *.tmp
 
-# Secure Data Directory
-data/*.json
-data/*.tmp
-!data/*.enc
+# Secure Data Directory (State is persisted exclusively on the dedicated 'data' branch)
+data/
+*.tmp
+

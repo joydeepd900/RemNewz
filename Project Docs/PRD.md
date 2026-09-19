@@ -102,11 +102,14 @@ RemNewz operates as a single Telegram bot presenting three specialized personas 
 
 - **FR16 — Single-User Authorization:** Verify incoming message `chat.id == TELEGRAM_CHAT_ID` or sender in group. Silently ignore any updates from unauthorized users.
 - **FR17 — Secret Isolation:** Zero secrets, tokens, or credentials in source code or git history. All credentials injected via GitHub Actions Secrets.
-- **FR18 — Storage & Repo Mode Toggle:**
+- **FR18 — Dual-Branch Storage & Repo Mode Toggle:**
   - Standardizes **Fernet encryption-at-rest** (`todos.enc`, `archive_todos.enc`, `settings.enc`, `seen.enc`) via `ENCRYPTION_KEY`. Plaintext remains the fallback if the key is omitted.
+  - **Dedicated Data Branch (`data`):** Code and state are strictly separated. The `main` branch contains application code only with zero `.enc` files and permanent `.gitignore` protection, ensuring personal user profiles and contribution graphs stay clean of automated bot commits. State files are mounted at `/data` at runtime via Git Worktrees and pushed exclusively to `origin data`.
+  - **Zero-Setup Auto-Provisioning:** When a user creates a new repo from the template, workflows detect the missing `data` branch and auto-provision an orphan `data` storage branch on first run.
+  - **Monthly History Squashing:** A scheduled maintenance workflow (`maintenance.yml`, `0 0 1 * *`) periodically squashes accumulated state sync commits on the `data` branch into a single clean snapshot commit.
   - *Public Repo Mode:* Runs `commands.yml` at high frequency (every **3–5 minutes**) with unlimited free Actions minutes.
   - *Private Repo Mode:* Runs `commands.yml` at **35-minute intervals** (`0,35 * * * *`) or utilizes Cloudflare Worker webhook proxy.
-- **FR19 — Concurrency & Push Resilience:** Use GitHub Actions concurrency groups and a `git pull --rebase` retry loop to prevent push conflicts between workflows.
+- **FR19 — Concurrency & Push Resilience:** Use GitHub Actions concurrency groups (`git-state-storage`) and a resilient `git pull --rebase` retry loop targeting `origin data` to eliminate push conflicts.
 - **FR20 — Supergroup Topic Routing & Thread Retention:** Support Telegram Forum Supergroups by routing Newzy digests to `topic_news` and Remzy task alerts to `topic_tasks`. For tasks created in unbound topics, preserve `origin_thread_id` to direct deadline alerts back into the context thread.
 - **FR21 — Event-Driven Webhook Dispatch Option:** Support optional zero-polling instant execution via Cloudflare Worker webhook proxy, passing payloads via `repository_dispatch` (`TELEGRAM_UPDATE_PAYLOAD`).
 

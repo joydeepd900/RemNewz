@@ -1,0 +1,68 @@
+name: "State Storage Maintenance"
+
+# RemNewz — Monthly State Storage Maintenance
+# Periodically squashes and consolidates historical state sync commits on the 
+# dedicated 'data' branch into a single clean snapshot commit.
+# Keeps the repository lightweight, fast to clone, and free of history bloat.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 1 * *'  # Midnight UTC on the 1st of every month
+
+concurrency:
+  group: git-state-storage
+  cancel-in-progress: false
+
+jobs:
+  squash-data:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Squash and consolidate data branch
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Check if data branch exists on remote
+          if ! git ls-remote --exit-code --heads origin data >/dev/null 2>&1; then
+            echo "Remote 'data' branch does not exist yet. Nothing to maintain."
+            exit 0
+          fi
+          
+          echo "Fetching data branch..."
+          git fetch origin data:data
+          
+          COMMIT_COUNT=$(git rev-list --count data)
+          echo "Current commit count on data branch: $COMMIT_COUNT"
+          
+          if [ "$COMMIT_COUNT" -le 1 ]; then
+            echo "Data branch already has only 1 commit. No maintenance required."
+            exit 0
+          fi
+          
+          echo "Consolidating $COMMIT_COUNT commits into a single clean snapshot..."
+          
+          # Remove local placeholder directory before attaching worktree
+          rm -rf data
+          git worktree add data data
+          
+          cd data
+          # Create an orphan branch containing the exact current state
+          git checkout --orphan temp-data
+          git add .
+          git commit -m "chore(maintenance): monthly state consolidation [skip ci]"
+          
+          # Overwrite data branch with the consolidated single commit
+          git branch -M data
+          git push --force origin data
+          
+          echo "Successfully consolidated data branch from $COMMIT_COUNT commits to 1 clean snapshot!"

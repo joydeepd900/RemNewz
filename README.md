@@ -19,12 +19,15 @@ It also functions as a full Natural Language Processing (NLP) Task Manager. Simp
 - **Intelligent Due Checker:** Reminds you of pending tasks without overwhelming your inbox (24-hour snooze gap for overdue tasks).
 - **Supergroup Topic Routing:** Natively supports Telegram Forum Supergroups to route news digests and task alerts into dedicated topics.
 - **Privacy First (Encryption at Rest):** Automatically encrypts your tasks and settings into `.enc` files before pushing to GitHub. This allows you to securely use a free Public Repository without exposing personal data.
+- **Dedicated Data Branch & Zero Git Clutter:** Code (`main`) and state (`data`) are strictly separated. Automated state syncs never touch `main`, keeping your personal GitHub activity graph and repository history 100% clean.
+- **Automated Monthly Maintenance:** A monthly scheduled workflow (`maintenance.yml`) consolidates historical sync commits on the `data` branch down to a single clean snapshot commit.
 
 ## 1-Click Setup Guide
 
 ### 1. Create Your Repository
 
 1. Click the **Use this template** button at the top of this repository.
+
 2. Name your repository. You can choose **Public** or **Private**:
    - **Public:** GitHub Actions minutes are unlimited and free. The Telegram chat poller can run every 5 minutes continuously. Your personal data is safely encrypted.
    - **Private:** GitHub Actions minutes are capped (typically 2,000/month). A 5-minute poller will exhaust your quota. You will need to change the cron schedule in `.github/workflows/commands.yml` to `*/30 * * * *` or utilize a Webhook.

@@ -25,6 +25,30 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup data storage branch
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Remove placeholder data directory from main before attaching worktree
+          rm -rf data
+          
+          # Check if data branch exists on remote
+          if git ls-remote --exit-code --heads origin data >/dev/null 2>&1; then
+            echo "Remote 'data' branch found. Fetching..."
+            git fetch origin data:data
+            git worktree add data data
+          else
+            echo "First run: 'data' branch not found. Auto-provisioning dedicated storage branch..."
+            git worktree add --orphan -b data data
+            touch data/__init__.py
+            git -C data add .
+            git -C data commit -m "chore(init): auto-provision data storage branch [skip ci]"
+            git push origin data
+          fi
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -56,13 +80,13 @@ jobs:
 
       - name: Commit and push state changes
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/
+          cd data
+          git add .
           if ! git diff --cached --quiet; then
             git commit -m "chore(sync): update tasks and settings [skip ci]"
-            # Resilient Pull-Rebase loop
+            # Resilient Pull-Rebase loop on dedicated data branch
             for i in 1 2 3; do
-              git pull --rebase origin main && git push origin main && break || sleep 5
+              git pull --rebase origin data && git push origin data && break || sleep 5
             done
           fi
+
