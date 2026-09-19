@@ -42,17 +42,22 @@ def init_db(db_path=DB_FILE):
         
     crypto = CryptoManager()
     
-    # 1. Decrypt Database to Disk if encrypted version exists and target is default
+    # 1. Decrypt Database to Disk only if target plaintext DB doesn't exist
+    #    or if the encrypted snapshot is strictly newer than the plaintext file
     if db_path == DB_FILE and crypto.is_enabled and os.path.exists(DB_FILE_ENC):
-        try:
-            with open(DB_FILE_ENC, "rb") as f:
-                cipher_data = f.read()
-            plain_data = crypto.decrypt_bytes(cipher_data)
-            with open(DB_FILE, "wb") as f:
-                f.write(plain_data)
-        except DecryptionError as e:
-            print(f"[store] FATAL decrypting remnewz.db.enc: {e}")
-            raise
+        should_decrypt = (
+            not os.path.exists(DB_FILE) or
+            os.path.getmtime(DB_FILE_ENC) > os.path.getmtime(DB_FILE)
+        )
+        if should_decrypt:
+            try:
+                with open(DB_FILE_ENC, "rb") as f:
+                    cipher_data = f.read()
+                plain_data = crypto.decrypt_bytes(cipher_data)
+                _atomic_write_file(DB_FILE, plain_data, is_binary=True)
+            except DecryptionError as e:
+                print(f"[store] FATAL decrypting remnewz.db.enc: {e}")
+                raise
     
     # 2. Connect
     _conn = sqlite3.connect(db_path)

@@ -614,7 +614,7 @@ If you are using a Private repository on the default 35-minute polling schedule,
 
 ### How do I check if my encryption key is active?
 
-Send `/config` to Helpzy. If encrypted mode is active, active storage will show `.enc` formats in your GitHub repository `data/` directory rather than plain `.json`.
+Send `/config` to Helpzy. If encrypted mode is active, the bot reports encryption as enabled, and your repository's dedicated `data` storage branch contains `remnewz.db.enc` (the unified encrypted database) rather than a plaintext `remnewz.db`.
 
 ### Can other people in my Telegram group use the bot?
 
