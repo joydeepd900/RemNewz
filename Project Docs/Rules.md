@@ -51,7 +51,7 @@ Read this before writing code or making architectural adjustments. These rules a
 - **Atomic File Writes:** When writing encrypted database binary or state, write to a temporary file (`.tmp`) first and atomically replace the destination file via `os.replace`.
 - **Unified Encrypted SQLite Engine:** State is consolidated into `data/remnewz.db.enc`. Pipelines must guarantee decryption and re-encryption via `try...finally` with `init_db()` and `close_db()`.
 - **Retention Ceilings:**
-  - `seen` deduplication (in `kv_store`): Prune entries older than **21 days** or cap at **1,500 entries** on every digest run.
+  - `seen` deduplication (in `kv_store`): Prune entries older than **30 days** or cap at **2,000 entries** on every digest run.
   - `tasks` lifecycle: Active and archived tasks are managed via transactional SQL queries, eliminating in-memory JSON array memory limits.
   - `settings` preferences: Track positive/negative tag weights bounded within $[-10, +10]$ to avoid preference skew.
 - **Fail-Secure Validation:** Ensure `load_failed` locks write access if decryption ever fails, preventing corrupted state from overwriting the database.

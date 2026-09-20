@@ -119,7 +119,7 @@ sequenceDiagram
         Orchestrator->>FetcherGH: Search GitHub repos matching query
         Orchestrator->>FetcherRSS: Filter RSS / HN entries matching query
     else Standard Digest Mode (Cron or /digest)
-        Orchestrator->>FetcherGH: Fetch repos (>250 stars/7d, >1200 stars/30d, >50 stars/fallback)
+        Orchestrator->>FetcherGH: Fetch repos (>500 stars/7d, >2000 stars/30d, min 500 stars/recency)
         Orchestrator->>FetcherRSS: Fetch top 10 items per feed + HackerNews top stories
     end
 
@@ -142,7 +142,7 @@ sequenceDiagram
     end
 
     opt mark_seen is True (Automated Digest or /digest)
-        Orchestrator->>Dedup: mark_seen(item_urls) & prune_seen(retention=21 days, max=1500)
+        Orchestrator->>Dedup: mark_seen(item_urls) & prune_seen(retention=30 days, max=2000)
         Dedup->>Settings: Save updated seen.enc
     end
 ```
@@ -285,7 +285,7 @@ flowchart TD
     TOPIC_ROUTING -- "bind_news" --> BIND_N[Set topic_news = current_thread_id]
     TOPIC_ROUTING -- "bind_tasks" --> BIND_T[Set topic_tasks = current_thread_id]
     TOPIC_ROUTING -- "clear_topics" --> CLEAR_T[Unbind all topic routing]
-    TOPIC_ROUTING -- "set_limit" --> LIMIT[Set news_limit = 1-20]
+    TOPIC_ROUTING -- "set_limit" --> LIMIT[Set news_limit = 1-15]
     TOPIC_ROUTING -- "repo_mode" --> REPO_M[Display Public/Private guide & edit link]
     TOPIC_ROUTING -- "add_topic" --> ADD_T[AI Normalizes Canonical Slug & Adds]
 ```

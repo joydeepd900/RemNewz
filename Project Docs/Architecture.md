@@ -12,7 +12,7 @@ RemNewz is a serverless, dual-workflow architecture powered by GitHub Actions, c
 graph TD
     subgraph GitHub Actions Scheduled Environment
         DW[digest.yml<br/>8:00 AM UTC & On-Demand] -->|Fetch Repos & Feeds| FEAT[Fetchers: GitHub / RSS / HN]
-        FEAT -->|Filter Candidates & Apply Weights| SEEN[kv_store in remnewz.db.enc<br/>21d / 1500 Cap]
+        FEAT -->|Filter Candidates & Apply Weights| SEEN[kv_store in remnewz.db.enc<br/>30d / 2000 Cap]
         FEAT -->|Synthesize Insights| AI[AI Engine: Pluggable Multi-Provider<br/>Gemini / OpenRouter / Groq]
         AI -->|Format HTML & Buttons| NEWZY[Persona: Newzy Digest]
         NEWZY -->|sendMessage| TG[Telegram Servers]
@@ -79,7 +79,7 @@ remnewz/
 │   ├── store.py                    # Atomic file I/O and encrypted storage manager
 │   └── time_utils.py               # Timezone-aware date parsing and formatting
 ├── fetchers/
-│   ├── github_repos.py             # Authenticated GitHub Search API fetcher (>250/7d, >1200/30d)
+│   ├── github_repos.py             # Authenticated GitHub Search API fetcher (>500/7d, >2000/30d, recency-ranked)
 │   └── rss_hn.py                   # RSS feeds (top 10 items) + Hacker News API fetcher
 ├── personas/
 │   ├── newzy.py                    # Digest synthesis, adaptive styling & interactive buttons

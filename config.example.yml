@@ -17,7 +17,7 @@ topics:
 # You can change this anytime in chat via: /config set_style <style>
 digest_style: "concise"
 
-# Maximum news items to deliver in each digest (1-20)
+# Maximum news items to deliver in each digest (1-15)
 # You can also change this in chat via: /config set_limit 5
 news_limit: 5
 

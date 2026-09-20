@@ -27,7 +27,7 @@ class TestDedupManager(unittest.TestCase):
 
     def test_prune_old_items(self):
         # Add an old item directly to internal dict to bypass datetime.now() in mark_seen
-        old_time = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+        old_time = (datetime.now(timezone.utc) - timedelta(days=40)).isoformat()
         self.dedup.seen_items["old_item"] = old_time
         
         # Add a new item
@@ -40,19 +40,19 @@ class TestDedupManager(unittest.TestCase):
         self.assertTrue(self.dedup.is_seen("new_item"))
 
     def test_max_items_limit(self):
-        # Add 1505 items
-        for i in range(1505):
+        # Add 2005 items
+        for i in range(2005):
             # slightly varied timestamps to ensure sorting
-            ts = (datetime.now(timezone.utc) - timedelta(seconds=1505-i)).isoformat()
+            ts = (datetime.now(timezone.utc) - timedelta(seconds=2005-i)).isoformat()
             self.dedup.seen_items[f"item_{i}"] = ts
             
         self.dedup.prune()
         
-        self.assertEqual(len(self.dedup.seen_items), 1500)
+        self.assertEqual(len(self.dedup.seen_items), 2000)
         # The oldest items (item_0 to item_4) should be pruned
         self.assertFalse(self.dedup.is_seen("item_0"))
         # The newest items should be kept
-        self.assertTrue(self.dedup.is_seen("item_1504"))
+        self.assertTrue(self.dedup.is_seen("item_2004"))
 
 
 class TestAIClient(unittest.TestCase):

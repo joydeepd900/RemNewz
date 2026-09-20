@@ -38,16 +38,18 @@ def synthesize_item(item: dict, style: str, provider: str, model: str) -> tuple[
         return _deterministic_fallback(item)
 
 def _build_prompt(item: dict, style: str) -> str:
+    stars_info = f"\nStars: ⭐ {item['stars']:,}" if item.get('stars') else ""
     return f"""
 You are an expert tech summarizer. Summarize the following news item in the '{style}' style.
 Keep it concise and punchy. Use HTML formatting (<b>, <i>, <code>, <a href="...">).
 Do not use Markdown. Do not include greetings.
+If Stars are provided, include the star count (e.g. ⭐ 1.2k) prominently next to or under the title.
 
 End your response with a newline followed by "TOPIC: <category>" where <category> is a 1-2 word topic describing the field (e.g. LLMs, Rust, DevOps, WebDev).
 
 Title: {item.get('title')}
 URL: {item.get('url')}
-Source: {item.get('source')}
+Source: {item.get('source')}{stars_info}
 Description: {item.get('summary')}
 """
 
@@ -126,8 +128,13 @@ def _deterministic_fallback(item: dict) -> tuple[str, str | None]:
     title = html.escape(item.get('title', 'No Title'))
     url = item.get('url', '#')
     summary = html.escape(item.get('summary', ''))
+    stars = item.get('stars')
     
-    msg = f"📰 <b>{source}</b>\n\n"
+    msg = f"📰 <b>{source}</b>"
+    if stars:
+        msg += f" (⭐ {stars:,})"
+    msg += "\n\n"
+    
     msg += f"<b><a href='{url}'>{title}</a></b>\n"
     if summary:
         msg += f"<i>{summary}</i>"

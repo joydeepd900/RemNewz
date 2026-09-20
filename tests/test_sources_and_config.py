@@ -65,12 +65,12 @@ class TestSourcesAndConfig(unittest.TestCase):
         helpzy = Helpzy()
         
         # Valid limit
-        helpzy.handle_command("/config set_limit 20", chat_id="123")
-        self.assertEqual(helpzy.settings["news_limit"], 20)
+        helpzy.handle_command("/config set_limit 15", chat_id="123")
+        self.assertEqual(helpzy.settings["news_limit"], 15)
         
-        # Invalid limit (< 1 or > 20)
-        helpzy.handle_command("/config set_limit 21", chat_id="123")
-        self.assertEqual(helpzy.settings["news_limit"], 20) # Unchanged
+        # Invalid limit (< 1 or > 15)
+        helpzy.handle_command("/config set_limit 16", chat_id="123")
+        self.assertEqual(helpzy.settings["news_limit"], 15) # Unchanged
 
     @patch('personas.helpzy.send_message')
     @patch('personas.helpzy.load_data')

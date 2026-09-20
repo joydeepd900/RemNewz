@@ -118,9 +118,9 @@ This roadmap divides the build into modular, verifiable phases. Each phase concl
 
 - **Phase 6.1 — Dynamic Sources & Settings Management:**
   - Added in-chat `/source` (`add`, `remove`, `list`) to dynamically manage RSS and Atom feeds without file edits.
-  - Added `/config set_limit [1-20]` to dynamically customize news items per digest.
+  - Added `/config set_limit [1-15]` to dynamically customize news items per digest.
   - Added `/config repo_mode` with dynamic GitHub edit links for workflow files.
-  - Extended deduplication window to 21 days / 1,500 items in `data/seen.enc`.
+  - Extended deduplication window to 30 days / 2,000 items in `data/remnewz.db.enc`.
 - **Phase 6.2 — Encryption Securities Deep-Check:**
   - Hardened cryptographic subsystem with fail-secure `CryptoManager` (`AES-128-CBC` with `SHA256 HMAC`).
   - Added universal encryption across all metadata files (`settings.enc`, `seen.enc`, `last_update_id.enc`).
@@ -131,7 +131,7 @@ This roadmap divides the build into modular, verifiable phases. Each phase concl
   - Standardized daily automated digest delivery to **8:00 AM UTC** (`0 8 * * *`).
   - Implemented on-demand daily digest via `/digest` (marking items seen).
   - Implemented instant news and topic search via `/news [query]` (without marking items seen).
-  - Upgraded GitHub trending filters with high-impact star thresholds (>250 past 7 days, >1200 past 30 days, >50 fallback).
+  - Upgraded GitHub trending filters with high-impact star thresholds (>500 past 7 days viral new releases, >2000 past 30 days active momentum, min 500 threshold with recency ranking).
   - Expanded RSS ingestion to top 10 articles per feed.
   - Added AI canonical topic slug normalization for clean GitHub topic queries.
   - Added dynamic command registration (`scripts/register_commands.py`) synchronizing commands across all 4 Telegram scopes.

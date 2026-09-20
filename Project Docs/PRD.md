@@ -22,7 +22,7 @@ RemNewz operates as a single Telegram bot presenting three specialized personas 
 1. 📰 **Newzy (The Intel & Discovery Scout):**
    - Dispatches daily morning digests at 8:00 AM UTC (`0 8 * * *`).
    - Supports on-demand daily digest execution via `/digest` and instant keyword searches via `/news <topic>`.
-   - Reads GitHub trending repositories (with curated star thresholds: >250 past 7d, >1200 past 30d, >50 fallback), RSS feeds (top 10 items), and Hacker News.
+   - Reads GitHub trending repositories (with curated star thresholds: >500 past 7d viral new releases, >2000 past 30d active momentum, min 500 stars ranked by recency), RSS feeds (top 10 items), and Hacker News.
    - Synthesizes findings using AI into personalized formats (*"What it is"*, *"Why it matters"*, *"Who should care"*).
    - Equips every digest item with an interactive `[ 📌 Remind Me ]` inline button and feedback controls (`[ 👍 ]`, `[ 👎 ]`).
    - Adapts to user interests dynamically over time.
@@ -72,9 +72,9 @@ RemNewz operates as a single Telegram bot presenting three specialized personas 
 
 ### 4.1 Discovery & Intelligent Synthesis (Newzy)
 
-- **FR1 — Multi-Source Ingestion:** Fetch trending/new GitHub repositories (via GitHub API) with quality star thresholds (>250 past 7d, >1200 past 30d, >50 fallback) and tech/AI news from configured RSS feeds (top 10 per feed) and Hacker News.
+- **FR1 — Multi-Source Ingestion:** Fetch trending/new GitHub repositories (via GitHub API) with quality star thresholds (>500 past 7d viral new releases, >2000 past 30d active momentum, min 500 threshold with recency ranking) and tech/AI news from configured RSS feeds (top 10 per feed) and Hacker News.
 - **FR2 — Pluggable AI Synthesis:** Send candidate items to a configurable AI engine (Google Gemini, OpenRouter, or Groq) with user-selectable model strings (`AI_MODEL`) to extract key innovations, practical takeaways, and relevance.
-- **FR3 — Deduplication & Pruning:** Compare candidates against `data/seen.enc`. Auto-prune entries older than **21 days** or cap history to **1,500 items** to maintain high performance.
+- **FR3 — Deduplication & Pruning:** Compare candidates against `kv_store` in `data/remnewz.db.enc`. Auto-prune entries older than **30 days** or cap history to **2,000 items** to maintain high performance.
 - **FR4 — Daily Scheduled Delivery:** Deliver digests once daily at **8:00 AM UTC** (`0 8 * * *`).
 - **FR5 — Interactive Action Buttons & Feedback Loop:** Attach an inline Telegram button (`[ 📌 Remind Me ]`) to each digest item to bridge directly into Remzy, along with `[ 👍 ]` and `[ 👎 ]` buttons to train feed preferences.
 - **FR6 — Zero-Key Graceful Fallback:** If no AI API key is configured, fall back to clean, deterministic markdown/HTML link summaries.
@@ -94,7 +94,7 @@ RemNewz operates as a single Telegram bot presenting three specialized personas 
 ### 4.3 In-Chat Configuration & Operations (Helpzy)
 
 - **FR13 — Setting Inspection:** `/config` outputs current timezone, active topics, RSS feeds, digest times, feed style, and storage encryption status.
-- **FR14 — Dynamic Adjustments:** `/config add_topic <tag>`, `/config remove_topic <tag>`, `/config set_tz <IANA_tz>`, `/config set_style <style>`, `/config set_limit <1-20>`, `/config repo_mode`.
+- **FR14 — Dynamic Adjustments:** `/config add_topic <tag>`, `/config remove_topic <tag>`, `/config set_tz <IANA_tz>`, `/config set_style <style>`, `/config set_limit <1-15>`, `/config repo_mode`.
 - **FR15 — Dynamic Overrides:** Persist chat-configured settings in the `kv_store` table within `data/remnewz.db.enc` which override `config.example.yml` defaults without requiring manual YAML edits.
 - **FR23 — Dynamic Source Management:** Manage RSS feeds in chat via `/source add <url> [label]`, `/source remove <id/url>`, and `/source list`.
 
@@ -103,7 +103,7 @@ RemNewz operates as a single Telegram bot presenting three specialized personas 
 - **FR16 — Single-User Authorization:** Verify incoming message `chat.id == TELEGRAM_CHAT_ID` or sender in group. Silently ignore any updates from unauthorized users.
 - **FR17 — Secret Isolation:** Zero secrets, tokens, or credentials in source code or git history. All credentials injected via GitHub Actions Secrets.
 - **FR18 — Dual-Branch Storage & Unified SQLite Engine:**
-  - Standardizes the **Unified Encrypted SQLite Engine (`data/remnewz.db.enc`)** backed by Fernet encryption-at-rest (`ENCRYPTION_KEY`). Unifies tasks, settings, deduplication (21 days / 1,500 items), and update offsets into a single transactional database.
+  - Standardizes the **Unified Encrypted SQLite Engine (`data/remnewz.db.enc`)** backed by Fernet encryption-at-rest (`ENCRYPTION_KEY`). Unifies tasks, settings, deduplication (30 days / 2,000 items), and update offsets into a single transactional database.
   - **Zero-Leak Guarantee:** Plaintext `.db`, `.sqlite3`, and `.tmp` files are permanently ignored by `.gitignore`. The database is decrypted in-memory/ephemerally during workflow execution and atomically re-encrypted before termination.
   - **Dedicated Data Branch (`data`):** Code and state are strictly separated. The `main` branch contains application code only with zero `.enc` files and permanent `.gitignore` protection, ensuring personal user profiles and contribution graphs stay clean of automated bot commits. State files are mounted at `/data` at runtime via Git Worktrees and pushed exclusively to `origin data`.
   - **Zero-Setup Auto-Provisioning:** When a user creates a new repo from the template, workflows detect the missing `data` branch and auto-provision an orphan `data` storage branch on first run.

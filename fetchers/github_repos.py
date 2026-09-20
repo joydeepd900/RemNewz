@@ -16,8 +16,8 @@ def fetch_github_repos(config: dict) -> list:
     if not topics and not keywords:
         return []
 
-    created_after_30 = (datetime.now(timezone.utc) - timedelta(days=30)).strftime("%Y-%m-%d")
-    pushed_after_7 = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%d")
+    created_after_7 = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%d")
+    pushed_after_30 = (datetime.now(timezone.utc) - timedelta(days=30)).strftime("%Y-%m-%d")
     
     queries = []
     for topic in topics:
@@ -31,8 +31,8 @@ def fetch_github_repos(config: dict) -> list:
     seen_urls = set()
 
     for q_base in queries:
-        # Try Primary: created in last 30 days, stars > 1200
-        query_primary = f"{q_base} created:>{created_after_30} stars:>1200"
+        # Try Primary: created in last 7 days, stars > 500
+        query_primary = f"{q_base} created:>{created_after_7} stars:>500"
         params_primary = {
             "q": query_primary,
             "sort": "stars",
@@ -46,9 +46,9 @@ def fetch_github_repos(config: dict) -> list:
             data = resp.json()
             items = data.get("items", [])
             
-            # If not enough new repos, try fallback: active this week, stars > 250
+            # If not enough new repos, try fallback: active this month, stars > 2000
             if len(items) < 3:
-                query_fallback = f"{q_base} pushed:>{pushed_after_7} stars:>250"
+                query_fallback = f"{q_base} pushed:>{pushed_after_30} stars:>2000"
                 params_fallback = {
                     "q": query_fallback,
                     "sort": "stars",
@@ -64,7 +64,7 @@ def fetch_github_repos(config: dict) -> list:
                 if repo["html_url"] in seen_urls:
                     continue
                 # Quality guardrails
-                if not repo.get("description") or repo.get("stargazers_count", 0) < 250:
+                if not repo.get("description") or repo.get("stargazers_count", 0) < 500:
                     continue
                 seen_urls.add(repo["html_url"])
                 all_items.append({
@@ -73,12 +73,14 @@ def fetch_github_repos(config: dict) -> list:
                     "url": repo["html_url"],
                     "title": repo["full_name"],
                     "summary": repo.get("description") or "No description provided.",
-                    "stars": repo.get("stargazers_count", 0)
+                    "stars": repo.get("stargazers_count", 0),
+                    "pushed_at": repo.get("pushed_at") or repo.get("created_at") or "",
+                    "created_at": repo.get("created_at") or ""
                 })
         except requests.RequestException as e:
             print(f"[github_repos] Failed to fetch repositories for {q_base}: {e}")
             continue
 
-    # Sort all collected items by stars descending and take top 10
-    all_items.sort(key=lambda x: x["stars"], reverse=True)
+    # Sort all collected items by recency descending and take top 10
+    all_items.sort(key=lambda x: x.get("pushed_at") or x.get("created_at") or "", reverse=True)
     return all_items[:10]

@@ -410,7 +410,7 @@ RemNewz allows you to add or remove RSS and Atom feeds dynamically directly from
 
 ### Configure Digest Item Limit (`/config set_limit`)
 
-Control the maximum number of news articles synthesized and delivered in each morning and evening digest (range: 1 to 20 items).
+Control the maximum number of news articles synthesized and delivered in each morning and evening digest (range: 1 to 15 items).
 
 **Syntax:**
 
@@ -458,11 +458,11 @@ Newzy operates autonomously to discover and synthesize technical news on schedul
 
 To ensure your digest delivers genuinely impactful software and prevents noise:
 
-- **Past 7 Days:** Repositories created in the last 7 days must have at least **250 stars**.
-- **Past 30 Days:** Repositories created in the last 30 days must have at least **1,200 stars**.
-- **Fallback Top Repositories:** Active projects in topic areas must have at least **50 stars**.
+- **Viral New Releases (Past 7 Days):** Repositories created in the last 7 days must have at least **500 stars**.
+- **Active Momentum Repos (Past 30 Days):** Repositories with commit/push activity in the last 30 days must have at least **2,000 stars**.
+- **Recency & Quality Filter:** Candidates must meet a minimum threshold of **500 stars** and are ranked by commit/push recency.
 - **RSS Feeds:** Fetches and processes the top 10 articles per configured RSS source.
-- **Deduplication:** Delivered items are recorded in `data/seen.enc` with a 21-day retention window (capped at 1,500 entries) to guarantee you never receive the same news twice.
+- **Deduplication:** Delivered items are recorded in the encrypted store (`data/remnewz.db.enc`) with a **30-day retention window** (capped at **2,000 entries**) to guarantee you never receive the same news twice.
 
 ### Interactive Feedback
 

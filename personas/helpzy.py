@@ -86,8 +86,8 @@ class Helpzy:
                 elif subcmd in ["set_limit", "set_news_limit"] and len(args) > 1:
                     try:
                         limit = int(args[1])
-                        if limit < 1 or limit > 20:
-                            send_message("❌ Limit must be between 1 and 20.", chat_id=chat_id, message_thread_id=message_thread_id)
+                        if limit < 1 or limit > 15:
+                            send_message("❌ Limit must be between 1 and 15.", chat_id=chat_id, message_thread_id=message_thread_id)
                         else:
                             self.settings["news_limit"] = limit
                             self._save()
@@ -319,7 +319,7 @@ class Helpzy:
             "<code>/source remove &lt;num or url&gt;</code> — Remove news source\n\n"
             "<b>Configuration</b>\n"
             "<code>/config</code> — Show current settings\n"
-            "<code>/config set_limit [1-20]</code> — Max news items per digest\n"
+            "<code>/config set_limit [1-15]</code> — Max news items per digest\n"
             "<code>/config add_topic [topic]</code> — Add GitHub trending topic\n"
             "<code>/config remove_topic [topic]</code> — Remove GitHub topic\n"
             "<code>/config set_tz [timezone]</code> — Set timezone (e.g. Asia/Kolkata)\n"
