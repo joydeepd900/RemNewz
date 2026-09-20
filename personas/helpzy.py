@@ -11,7 +11,7 @@ class Helpzy:
     
     It handles commands related to sources (RSS/Topics), digest configurations,
     timezone settings, and displays help/status menus. State is persisted to the
-    encrypted store.
+    encrypted store by default.
     """
     def __init__(self, file_path: str = None, *args, **kwargs):
         self.file_path = file_path

@@ -174,8 +174,9 @@ def close_db():
     Commit transactions, close the database, encrypt it, and delete the plaintext file.
     
     This lifecycle function ensures that the plaintext database is safely encrypted 
-    to a .enc file before the process exits, verifying that the file is only deleted 
-    after successful encryption to prevent data loss.
+    to a .enc file before the process exits. Encryption and plaintext DB_FILE cleanup 
+    occur only when ENCRYPTION_KEY is present and non-blank; when encryption is disabled, 
+    close_db() only closes the database connection.
     """
     global _conn
     if _conn is None:

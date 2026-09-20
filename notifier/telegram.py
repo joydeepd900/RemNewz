@@ -91,75 +91,107 @@ def _chunk_message(text, max_length=MAX_MESSAGE_LENGTH):
     current_chunk = ""
     open_tags = []
     
-    tag_pattern = re.compile(r'(</?[a-zA-Z0-9-]+[^>]*>)')
-    
-    def update_tags(tag_text):
-        match = re.match(r'</?([a-zA-Z0-9-]+)', tag_text)
-        if match:
-            tag_name = match.group(1).lower()
-            if tag_text.startswith('</'):
-                if open_tags and open_tags[-1][0] == tag_name:
-                    open_tags.pop()
-            else:
-                open_tags.append((tag_name, tag_text))
+    tag_pattern = re.compile(r'(</?[a-zA-Z0-9-]+[^>]*>|&[a-zA-Z0-9#]+;)')
 
     for line in lines:
-        if len(line) <= max_length and len(current_chunk) + len(line) + 1 <= max_length:
-            # Fits nicely
+        temp_open = list(open_tags)
+        for match in tag_pattern.finditer(line):
+            tag_text = match.group(0)
+            tag_name_match = re.match(r'</?([a-zA-Z0-9-]+)', tag_text)
+            if tag_name_match:
+                t_name = tag_name_match.group(1).lower()
+                if tag_text.startswith('</'):
+                    if temp_open and temp_open[-1][0] == t_name:
+                        temp_open.pop()
+                else:
+                    temp_open.append((t_name, tag_text))
+                    
+        close_str_len = sum(len(t[0]) + 3 for t in temp_open)
+        
+        if current_chunk:
+            needed_len = len(current_chunk) + 1 + len(line) + close_str_len
+        else:
+            open_str = "".join(t[1] for t in open_tags)
+            needed_len = len(open_str) + len(line) + close_str_len
+            
+        if needed_len <= max_length:
             if current_chunk:
                 current_chunk += "\n" + line
             else:
-                current_chunk = line
-                
-            for match in tag_pattern.finditer(line):
-                update_tags(match.group(0))
+                open_str = "".join(t[1] for t in open_tags)
+                current_chunk = open_str + line
+            open_tags = temp_open
             continue
             
-        # Current line pushes chunk over limit, or line itself is > max_length
-        # First flush current chunk if not empty
         if current_chunk:
-            close_str = "".join(f"</{tag[0]}>" for tag in reversed(open_tags))
+            close_str = "".join(f"</{t[0]}>" for t in reversed(open_tags))
             chunks.append(current_chunk + close_str)
-            open_str = "".join(tag[1] for tag in open_tags)
+            open_str = "".join(t[1] for t in open_tags)
             current_chunk = open_str
         else:
-            current_chunk = ""
+            current_chunk = "".join(t[1] for t in open_tags)
             
-        # Process long line by tokens (text blocks and HTML tags)
         tokens = tag_pattern.split(line)
-        
         for token in tokens:
             if not token:
                 continue
                 
             is_tag = tag_pattern.match(token)
-            
-            # If a single non-tag token is massive, we must split it by characters
-            if not is_tag and len(token) > max_length:
-                for i in range(0, len(token), max_length):
-                    part = token[i:i + max_length]
-                    if len(current_chunk) + len(part) > max_length:
+            if is_tag:
+                if token.startswith('&'):
+                    close_len = sum(len(t[0]) + 3 for t in open_tags)
+                    if len(current_chunk) + len(token) + close_len > max_length:
                         close_str = "".join(f"</{t[0]}>" for t in reversed(open_tags))
                         chunks.append(current_chunk + close_str)
-                        open_str = "".join(t[1] for t in open_tags)
-                        current_chunk = open_str + part
+                        current_chunk = "".join(t[1] for t in open_tags)
+                        if len(current_chunk) + close_len >= max_length:
+                            current_chunk = ""
+                            open_tags = []
+                    current_chunk += token
+                else:
+                    match = re.match(r'</?([a-zA-Z0-9-]+)', token)
+                    t_name = match.group(1).lower()
+                    is_close = token.startswith('</')
+                    
+                    new_open = list(open_tags)
+                    if is_close:
+                        if new_open and new_open[-1][0] == t_name:
+                            new_open.pop()
                     else:
-                        current_chunk += part
-                continue
-                
-            # If token fits in chunk
-            if len(current_chunk) + len(token) <= max_length:
-                current_chunk += token
-                if is_tag:
-                    update_tags(token)
+                        new_open.append((t_name, token))
+                        
+                    new_close_len = sum(len(t[0]) + 3 for t in new_open)
+                    
+                    if len(current_chunk) + len(token) + new_close_len > max_length:
+                        close_str = "".join(f"</{t[0]}>" for t in reversed(open_tags))
+                        chunks.append(current_chunk + close_str)
+                        current_chunk = "".join(t[1] for t in open_tags)
+                        if len(current_chunk) + new_close_len >= max_length:
+                            current_chunk = ""
+                            open_tags = []
+                            new_open = []
+                            new_close_len = 0
+                            
+                    current_chunk += token
+                    open_tags = new_open
             else:
-                # Flush and start new chunk
-                close_str = "".join(f"</{t[0]}>" for t in reversed(open_tags))
-                chunks.append(current_chunk + close_str)
-                open_str = "".join(t[1] for t in open_tags)
-                current_chunk = open_str + token
-                if is_tag:
-                    update_tags(token)
+                while token:
+                    close_len = sum(len(t[0]) + 3 for t in open_tags)
+                    avail = max_length - len(current_chunk) - close_len
+                    
+                    if avail <= 0:
+                        close_str = "".join(f"</{t[0]}>" for t in reversed(open_tags))
+                        chunks.append(current_chunk + close_str)
+                        current_chunk = "".join(t[1] for t in open_tags)
+                        avail = max_length - len(current_chunk) - close_len
+                        if avail <= 0:
+                            current_chunk = ""
+                            open_tags = []
+                            avail = max_length
+                        
+                    part = token[:max(1, avail)]
+                    current_chunk += part
+                    token = token[max(1, avail):]
 
     if current_chunk.strip():
         close_str = "".join(f"</{tag[0]}>" for tag in reversed(open_tags))
@@ -342,7 +374,7 @@ def answer_callback_query(callback_query_id, text=None):
     except requests.exceptions.RequestException as e:
         print(f"[telegram] answerCallbackQuery failed: {e}")
 
-def resolve_topic_id(topic_name: str) -> int:
+def resolve_topic_id(topic_name: str) -> int | None:
     """
     Resolve the configured forum topic ID from user settings.
     
