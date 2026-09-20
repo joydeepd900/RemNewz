@@ -95,7 +95,7 @@ remnewz/
 ├── scripts/
 │   ├── register_commands.py        # Pushes commands to Telegram across all 4 standard scopes
 │   └── cf_worker_proxy.js          # Cloudflare Worker webhook proxy script
-├── tests/                          # Automated pytest test suites (fetchers, reminders, supergroups, search & stats)
+├── tests/                          # Automated pytest test suites (untracked/local-only for security)
 ├── main_digest.py                  # Entrypoint for digest.yml and on-demand /digest /news
 ├── main_commands.py                # Entrypoint for commands.yml
 ├── requirements.txt                # Lightweight dependencies

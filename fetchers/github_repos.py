@@ -49,7 +49,7 @@ def _collect_repos(raw_repos: list, seen_urls: set, all_items: list) -> int:
 
 def fetch_github_repos(config: dict) -> list:
     """Fetch recent trending GitHub repositories based on config topics and keywords."""
-    github_token = os.environ.get("GITHUB_TOKEN")
+    github_token = os.environ.get("GITHUB_PAT") or os.environ.get("GITHUB_TOKEN")
     
     headers = {"Accept": "application/vnd.github.v3+json"}
     if github_token:

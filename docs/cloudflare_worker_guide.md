@@ -99,9 +99,25 @@ The Cloudflare Worker needs authorization to trigger a `repository_dispatch` eve
 | `GITHUB_OWNER` | Plain text / Secret | `your-github-username` | Your GitHub account or organization name |
 | `GITHUB_REPO` | Plain text / Secret | `RemNewz` | Your repository name |
 | `GITHUB_PAT` | **Secret (Encrypted)** | `github_pat_xxxxxxxx` | The GitHub token created in Step 1 |
-| `TELEGRAM_SECRET_TOKEN` | **Secret (Encrypted)** | `AnyRandomSecretKey123` | Any secret string (letters, numbers, hyphens) to secure incoming requests |
+| `TELEGRAM_SECRET_TOKEN` | **Secret (Encrypted)** | *(see below)* | A **cryptographically random** secret string to authenticate incoming Telegram requests |
 
 1. Click **Deploy** / **Save**.
+
+> **⚠️ Security: Generate a strong `TELEGRAM_SECRET_TOKEN`**
+>
+> Do **not** use a simple or guessable value. Generate a cryptographically random token using one of these commands:
+>
+> **Python:**
+> ```bash
+> python -c "import secrets; print(secrets.token_urlsafe(32))"
+> ```
+>
+> **PowerShell:**
+> ```powershell
+> -join ((1..44) | ForEach-Object { [char](Get-Random -Minimum 33 -Maximum 127) })
+> ```
+>
+> Copy the output and use it as your `TELEGRAM_SECRET_TOKEN` value in both Cloudflare Worker secrets and the Telegram webhook registration (Step 5).
 
 > **Note:** Keep your `TELEGRAM_SECRET_TOKEN` handy, as you will use this exact string when registering the webhook with Telegram.
 

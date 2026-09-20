@@ -49,6 +49,7 @@ def _chunk_message(text, max_length=MAX_MESSAGE_LENGTH):
 
     Splits at line boundaries to preserve HTML formatting.
     Tracks open tags to close and reopen them across chunks.
+    If a line is too long, it tries to split it without breaking HTML tags.
     """
     if len(text) <= max_length:
         return [text]
@@ -58,11 +59,11 @@ def _chunk_message(text, max_length=MAX_MESSAGE_LENGTH):
     current_chunk = ""
     open_tags = []
     
-    tag_pattern = re.compile(r'</?([a-zA-Z0-9-]+)[^>]*>')
+    tag_pattern = re.compile(r'(</?[a-zA-Z0-9-]+[^>]*>)')
     
-    def update_tags(line_segment):
-        for match in tag_pattern.finditer(line_segment):
-            tag_text = match.group(0)
+    def update_tags(tag_text):
+        match = re.match(r'</?([a-zA-Z0-9-]+)', tag_text)
+        if match:
             tag_name = match.group(1).lower()
             if tag_text.startswith('</'):
                 if open_tags and open_tags[-1][0] == tag_name:
@@ -71,30 +72,62 @@ def _chunk_message(text, max_length=MAX_MESSAGE_LENGTH):
                 open_tags.append((tag_name, tag_text))
 
     for line in lines:
-        if len(line) > max_length:
+        if len(line) <= max_length and len(current_chunk) + len(line) + 1 <= max_length:
+            # Fits nicely
             if current_chunk:
-                close_str = "".join(f"</{tag[0]}>" for tag in reversed(open_tags))
-                chunks.append(current_chunk.rstrip("\n") + close_str)
-                current_chunk = ""
-            for i in range(0, len(line), max_length):
-                chunks.append(line[i:i + max_length])
-            continue
-
-        candidate = current_chunk + line + "\n"
-        if len(candidate) > max_length:
-            if current_chunk:
-                close_str = "".join(f"</{tag[0]}>" for tag in reversed(open_tags))
-                chunks.append(current_chunk.rstrip("\n") + close_str)
-                
-                open_str = "".join(tag[1] for tag in open_tags)
-                current_chunk = open_str + line + "\n"
-                update_tags(line)
+                current_chunk += "\n" + line
             else:
-                current_chunk = line + "\n"
-                update_tags(line)
+                current_chunk = line
+                
+            for match in tag_pattern.finditer(line):
+                update_tags(match.group(0))
+            continue
+            
+        # Current line pushes chunk over limit, or line itself is > max_length
+        # First flush current chunk if not empty
+        if current_chunk:
+            close_str = "".join(f"</{tag[0]}>" for tag in reversed(open_tags))
+            chunks.append(current_chunk + close_str)
+            open_str = "".join(tag[1] for tag in open_tags)
+            current_chunk = open_str
         else:
-            current_chunk = candidate
-            update_tags(line)
+            current_chunk = ""
+            
+        # Process long line by tokens (text blocks and HTML tags)
+        tokens = tag_pattern.split(line)
+        
+        for token in tokens:
+            if not token:
+                continue
+                
+            is_tag = tag_pattern.match(token)
+            
+            # If a single non-tag token is massive, we must split it by characters
+            if not is_tag and len(token) > max_length:
+                for i in range(0, len(token), max_length):
+                    part = token[i:i + max_length]
+                    if len(current_chunk) + len(part) > max_length:
+                        close_str = "".join(f"</{t[0]}>" for t in reversed(open_tags))
+                        chunks.append(current_chunk + close_str)
+                        open_str = "".join(t[1] for t in open_tags)
+                        current_chunk = open_str + part
+                    else:
+                        current_chunk += part
+                continue
+                
+            # If token fits in chunk
+            if len(current_chunk) + len(token) <= max_length:
+                current_chunk += token
+                if is_tag:
+                    update_tags(token)
+            else:
+                # Flush and start new chunk
+                close_str = "".join(f"</{t[0]}>" for t in reversed(open_tags))
+                chunks.append(current_chunk + close_str)
+                open_str = "".join(t[1] for t in open_tags)
+                current_chunk = open_str + token
+                if is_tag:
+                    update_tags(token)
 
     if current_chunk.strip():
         close_str = "".join(f"</{tag[0]}>" for tag in reversed(open_tags))
@@ -238,7 +271,7 @@ def get_updates(offset=None, timeout=30):
     """
     url = _api_url("getUpdates")
     payload = {"timeout": timeout}
-    if offset:
+    if offset is not None:
         payload["offset"] = offset
         
     try:

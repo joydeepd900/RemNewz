@@ -66,10 +66,11 @@ class Remzy:
                 return True
                 
             task_id = args.split()[0]
+            safe_id = html.escape(task_id)
             if self.store.archive_task(task_id):
-                send_message(f"✅ Task <code>{task_id}</code> marked as done and archived.", chat_id=chat_id, message_thread_id=message_thread_id)
+                send_message(f"✅ Task <code>{safe_id}</code> marked as done and archived.", chat_id=chat_id, message_thread_id=message_thread_id)
             else:
-                send_message(f"❌ Task <code>{task_id}</code> not found.", chat_id=chat_id, message_thread_id=message_thread_id)
+                send_message(f"❌ Task <code>{safe_id}</code> not found.", chat_id=chat_id, message_thread_id=message_thread_id)
             return True
             
         if cmd == "/remove":
@@ -78,10 +79,11 @@ class Remzy:
                 return True
                 
             task_id = args.split()[0]
+            safe_id = html.escape(task_id)
             if self.store.delete_task(task_id):
-                send_message(f"🗑️ Task <code>{task_id}</code> deleted permanently.", chat_id=chat_id, message_thread_id=message_thread_id)
+                send_message(f"🗑️ Task <code>{safe_id}</code> deleted permanently.", chat_id=chat_id, message_thread_id=message_thread_id)
             else:
-                send_message(f"❌ Task <code>{task_id}</code> not found.", chat_id=chat_id, message_thread_id=message_thread_id)
+                send_message(f"❌ Task <code>{safe_id}</code> not found.", chat_id=chat_id, message_thread_id=message_thread_id)
             return True
             
         if cmd == "/history":
@@ -187,9 +189,14 @@ class Remzy:
 
     def handle_remind_me(self, callback_data: str, message_thread_id: int = None, chat_id: str = None):
         """Create a task from a Remind Me button."""
+        # Extract context if present (remind_me:Title...)
+        parts = callback_data.split(":", 1)
+        item_title = parts[1].strip() if len(parts) > 1 and parts[1].strip() else "News Item"
+        task_title = f"Review: {item_title}"
+
         task = {
             "id": str(uuid.uuid4())[:8],
-            "title": "Review News Item",
+            "title": task_title,
             "due_at": (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat(),
             "priority": "normal",
             "reminded_due": False,
@@ -198,7 +205,8 @@ class Remzy:
             "created_at": datetime.now(timezone.utc).isoformat()
         }
         self.store.add_task(task)
-        send_message(f"📌 Task Created: <b>Review News Item</b>\n📅 Due: Tomorrow\n🆔 <code>{task['id']}</code>", chat_id=chat_id, message_thread_id=message_thread_id)
+        safe_title = html.escape(task_title)
+        send_message(f"📌 Task Created: <b>{safe_title}</b>\n📅 Due: Tomorrow\n🆔 <code>{task['id']}</code>", chat_id=chat_id, message_thread_id=message_thread_id)
         
     def check_deadlines(self):
         """Evaluate task deadlines and send due/overdue notifications."""

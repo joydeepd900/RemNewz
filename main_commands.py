@@ -37,6 +37,7 @@ def save_last_update_id(last_id: int):
 
 def run_pipeline():
     print("[main_commands] Starting RemNewz commands pipeline (Phase 3)...")
+    init_db()
     
     allowed_chat_id = os.environ.get("TELEGRAM_CHAT_ID", "")
     ai_provider = os.environ.get("AI_PROVIDER", "none")
@@ -63,11 +64,12 @@ def run_pipeline():
         if last_id == -1:
             offset = -1
         else:
-            offset = last_id + 1 if last_id else None
+            offset = last_id + 1 if last_id is not None else None
         print(f"[main_commands] Fetching updates from Telegram (offset={offset})...")
         updates = get_updates(offset=offset, timeout=5)
     
     highest_id = last_id
+    rate_limits = {}
     
     for update in updates:
         update_id = update.get("update_id")
@@ -75,6 +77,21 @@ def run_pipeline():
             highest_id = update_id
             
         try:
+            # Determine chat_id for rate limiting
+            chat_id = None
+            if "message" in update:
+                chat_id = str(update["message"].get("chat", {}).get("id", ""))
+            elif "callback_query" in update:
+                chat_id = str(update["callback_query"].get("message", {}).get("chat", {}).get("id", ""))
+                
+            if chat_id:
+                rate_limits[chat_id] = rate_limits.get(chat_id, 0) + 1
+                if rate_limits[chat_id] > 5:
+                    print(f"[main_commands] Rate limit exceeded for chat {chat_id} (update {update_id})")
+                    if "callback_query" in update:
+                        answer_callback_query(update["callback_query"].get("id"))
+                    continue
+
             # Handle Messages
             if "message" in update:
                 msg = update["message"]
@@ -122,7 +139,7 @@ def run_pipeline():
                     answer_callback_query(query_id) # Acknowledge anyway
         except Exception as e:
             # Note: Do not print raw `update` payload here to avoid leaking data in GitHub Actions logs.
-            print(f"[main_commands] Error processing update {update_id}: {type(e).__name__} - {e}")
+            print(f"[main_commands] Error processing update {update_id}: {type(e).__name__}")
 
     if highest_id is not None and highest_id != last_id:
         save_last_update_id(highest_id)

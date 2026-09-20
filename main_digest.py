@@ -125,7 +125,9 @@ def run_digest(chat_id=None, message_thread_id=None, max_items=None, mark_seen=T
         msg_text, topic = synthesize_item(item, digest_style, ai_provider, ai_model)
         
         # Build interactive buttons
-        buttons = [{"text": "📌 Remind Me", "callback_data": "remind_me"}]
+        # callback_data limit is 64 bytes. "remind_me:" is 10 bytes. Leaving 54 bytes for the title.
+        encoded_title = item['title'].encode('utf-8')[:50].decode('utf-8', 'ignore')
+        buttons = [{"text": "📌 Remind Me", "callback_data": f"remind_me:{encoded_title}"}]
         
         if topic:
             # Truncate topic to fit Telegram's 64-byte callback_data limit

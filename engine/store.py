@@ -523,11 +523,13 @@ class TaskStore:
     def save(self):
         if getattr(self, "load_failed", False):
             raise RuntimeError("TaskStore is in an invalid/unloaded state due to decryption failure. Writes are blocked to prevent data loss.")
+        conn = self._get_active_conn()
         if self._todos is not None:
-            conn = self._get_active_conn()
             with conn:
+                current_ids = [t.get("id") for t in self._todos]
+                placeholders = ",".join("?" * len(current_ids)) if current_ids else "''"
+                conn.execute(f"DELETE FROM tasks WHERE status = 'active' AND id NOT IN ({placeholders})", current_ids)
                 for t in self._todos:
                     conn.execute("INSERT OR REPLACE INTO tasks (id, status, data, completed_at) VALUES (?, 'active', ?, NULL)",
                                  (t.get("id"), json.dumps(t)))
-        conn = self._get_active_conn()
         conn.commit()

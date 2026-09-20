@@ -258,9 +258,11 @@ class Helpzy:
             else:
                 # Match by URL or label
                 new_feeds = []
+                removed = False
                 for f in feeds:
-                    if f.get("url") == target or f.get("label", "").lower() == target.lower():
+                    if not removed and (f.get("url") == target or f.get("label", "").lower() == target.lower()):
                         removed_label = f.get("label", f.get("url"))
+                        removed = True
                     else:
                         new_feeds.append(f)
                 feeds = new_feeds

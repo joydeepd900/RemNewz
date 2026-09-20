@@ -67,6 +67,8 @@ jobs:
 
       - name: Run commands pipeline
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_PAT: ${{ secrets.GITHUB_PAT }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           AI_PROVIDER: ${{ secrets.AI_PROVIDER }}
@@ -75,6 +77,7 @@ jobs:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+          TIMEZONE: ${{ secrets.TIMEZONE }}
           TELEGRAM_UPDATE_PAYLOAD: ${{ toJson(github.event.client_payload.update) }}
         run: python main_commands.py
 

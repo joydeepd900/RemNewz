@@ -58,12 +58,16 @@ def _call_gemini(prompt: str, model: str) -> str:
     if not api_key:
         raise ValueError("GEMINI_API_KEY not set")
         
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+    headers = {
+        "x-goog-api-key": api_key,
+        "Content-Type": "application/json"
+    }
     payload = {
         "contents": [{"parts": [{"text": prompt}]}]
     }
     
-    resp = requests.post(url, json=payload, timeout=15)
+    resp = requests.post(url, headers=headers, json=payload, timeout=15)
     resp.raise_for_status()
     
     data = resp.json()

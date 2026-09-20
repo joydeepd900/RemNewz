@@ -39,20 +39,19 @@ class DedupManager:
 
         cutoff_date = datetime.now(timezone.utc) - timedelta(days=RETENTION_DAYS)
         
-        # Filter by age
         pruned = {}
         for item_id, ts_str in self.seen_items.items():
             try:
                 ts = datetime.fromisoformat(ts_str)
                 if ts >= cutoff_date:
-                    pruned[item_id] = ts_str
+                    pruned[item_id] = ts
             except ValueError:
                 pass # Drop invalid timestamps
 
         # Sort by timestamp descending (newest first)
         sorted_items = sorted(
             pruned.items(), 
-            key=lambda x: datetime.fromisoformat(x[1]), 
+            key=lambda x: x[1], 
             reverse=True
         )
 
@@ -60,5 +59,6 @@ class DedupManager:
         if len(sorted_items) > MAX_ITEMS:
             sorted_items = sorted_items[:MAX_ITEMS]
 
-        self.seen_items = dict(sorted_items)
+        # Re-build dictionary
+        self.seen_items = {k: v.isoformat() for k, v in sorted_items}
         self._save()

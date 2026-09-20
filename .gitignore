@@ -36,4 +36,8 @@ memory.md
 data/
 *.tmp
 *.db
-
+
+# Testing
+tests/
+test_*
+.pytest_cache/

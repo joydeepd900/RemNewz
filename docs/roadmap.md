@@ -146,6 +146,12 @@ This roadmap divides the build into modular, verifiable phases. Each phase concl
     - Implemented `/stats` generating a comprehensive productivity metrics dashboard: total tracked tasks, active vs. completed count, completion rate percentage, overdue count, and priority distribution (`[P1]`, `[P2]`, `[P3]`).
     - Expanded SQLite archive storage cap from 50 to **1,000 tasks** (`DB_ARCHIVE_LIMIT = 1000`).
     - Added automated test suite `tests/test_search_and_stats.py` validating search filtering and statistics computation across clean and edge conditions.
+- **Phase 6.5 — Security Audit & Final Hardening:**
+  - Conducted a comprehensive security audit identifying and fixing 20 issues (9 security, 11 functional flaws).
+  - Hardened API integrations (moved Gemini API key to `x-goog-api-key` header).
+  - Mitigated SSRF in RSS fetcher, prevented HTML/Prompt injections, and added strict input validation across settings.
+  - Implemented a leaky-bucket rate limiter for webhook commands.
+  - Removed `tests/` directory from git tracking for operational security.
 
 ---
 
