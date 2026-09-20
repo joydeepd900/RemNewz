@@ -1,6 +1,6 @@
 # Phases — Build & Verification Roadmap
 
-**Related Docs:** [PRD](./prd.md) · [Architecture](./architecture.md) · [Contributing Guidelines](../CONTRIBUTING.md)
+**Related Docs:** [Specification](./spec.md) · [Architecture](./architecture.md) · [Contributing Guidelines](../CONTRIBUTING.md)
 
 This roadmap divides the build into modular, verifiable phases. Each phase concludes with explicit manual and automated checkpoints before advancing to the next.
 

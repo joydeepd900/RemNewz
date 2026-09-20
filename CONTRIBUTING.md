@@ -1,6 +1,6 @@
 # Contributing Guidelines — Rules, Boundaries & Conventions
 
-**Related Docs:** [PRD](docs/prd.md) · [Architecture](docs/architecture.md) · [Roadmap (Phases)](docs/roadmap.md)
+**Related Docs:** [Specification](docs/spec.md) · [Architecture](docs/architecture.md) · [Roadmap (Phases)](docs/roadmap.md)
 
 Read this before writing code or making architectural adjustments. These rules apply equally whether implementation is performed by a human engineer or an AI coding agent.
 
@@ -61,4 +61,4 @@ Read this before writing code or making architectural adjustments. These rules a
 ## 7. Scope & Development Discipline
 - **No Heavy Frameworks:** Keep dependencies minimal (`requests`, `feedparser`, `pyyaml`, `python-dateutil`, `cryptography`). Avoid heavy Telegram SDKs or bulky ORMs.
 - **Phase Verification:** Complete and verify each phase in [Roadmap](docs/roadmap.md) end to end before advancing.
-- **Documented Deviations:** Any architectural adjustment must be documented in [Architecture](docs/architecture.md) and [PRD](docs/prd.md) before writing corresponding code.
+- **Documented Deviations:** Any architectural adjustment must be documented in [Architecture](docs/architecture.md) and [Specification](docs/spec.md) before writing corresponding code.

@@ -1,6 +1,6 @@
 # Architecture — RemNewz: AI Assistant Suite & Open-Source Template
 
-**Related Docs:** [PRD](./prd.md) · [Contributing Guidelines](../CONTRIBUTING.md) · [Roadmap (Phases)](./roadmap.md)
+**Related Docs:** [Specification](./spec.md) · [Contributing Guidelines](../CONTRIBUTING.md) · [Roadmap (Phases)](./roadmap.md)
 
 ---
 
@@ -72,9 +72,9 @@ remnewz/
 ├── docs/
 │   ├── architecture.md             # System architecture & component breakdown
 │   ├── cloudflare_worker_guide.md  # Zero-polling webhook proxy setup guide
-│   ├── prd.md                      # Product requirements document
 │   ├── repo_modes_guide.md         # Public vs Private repository guide
 │   ├── roadmap.md                  # Build roadmap & verification checkpoints (Phases)
+│   ├── spec.md                     # Product requirements & specification document
 │   ├── structures.md               # Centralized Mermaid architecture diagrams
 │   └── user_guide.md               # User guide & command reference
 ├── engine/

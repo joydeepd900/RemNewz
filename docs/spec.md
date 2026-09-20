@@ -1,4 +1,4 @@
-# PRD — RemNewz: Personal AI Intelligence & Reminders Suite
+# Product Specification (PRD) — RemNewz: Personal AI Intelligence & Reminders Suite
 
 **Product:** RemNewz  
 **Status:** Phase 5 Complete (Supergroup Topic Routing & Webhook Dispatch Implemented)  
