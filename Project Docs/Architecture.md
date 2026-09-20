@@ -183,8 +183,8 @@ Because `digest.yml` and `commands.yml` run independently, simultaneous runs cou
 2. **Resilient Pull-Rebase Loop:**
    Before pushing, the runner executes:
    ```bash
-   git pull --rebase origin main
-   git push origin main
+   git pull --rebase origin data
+   git push origin data
    ```
    with exponential backoff (up to 3 retries).
 
@@ -198,7 +198,7 @@ sequenceDiagram
     participant TG as Telegram Bot API
     participant CF as Cloudflare Worker (Edge)
     participant GH as GitHub Actions (commands.yml)
-    participant Git as Git Repo (main)
+    participant Git as GitHub Repo ('data' branch)
 
     User->>TG: /todo Review PR by 5pm
     TG->>CF: POST Webhook (JSON Update)
@@ -207,7 +207,7 @@ sequenceDiagram
     GH->>GH: commands.yml runs immediately
     GH->>GH: main_commands.py parses TELEGRAM_UPDATE_PAYLOAD
     GH->>TG: sendMessage (Task confirmation)
-    GH->>Git: Push encrypted state (if modified)
+    GH->>Git: Push encrypted state to 'data' branch (if modified)
 ```
 
 - **Zero Idle Runner Waste:** Runners only spin up when a message is actually sent.
@@ -229,7 +229,7 @@ sequenceDiagram
     actor User as User on Phone
     participant TG as Telegram Servers (Cloud Queue)
     participant Runner as GitHub Actions Runner (commands.yml)
-    participant Git as GitHub Repository (main)
+    participant Git as GitHub Repository ('data' branch)
 
     Note over User,TG: Between Minute 00:00 and 00:35
     User->>TG: /todo Review architecture PR by 6pm
@@ -239,7 +239,7 @@ sequenceDiagram
     Note over TG: Telegram queues all 4 updates safely in cloud. Zero commits so far.
 
     Note over Runner: At Minute 00:35 (Scheduled Trigger: 0,35 * * * *)
-    Runner->>Git: git checkout main
+    Runner->>Git: Mount 'data' branch worktree at data/
     Runner->>TG: getUpdates?offset=last_id
     TG->>Runner: Returns batch of 4 updates
     
@@ -253,7 +253,7 @@ sequenceDiagram
     TG->>User: User receives batch confirmation messages on phone
 
     Runner->>Runner: git diff --quiet check
-    Runner->>Git: ONE single consolidated commit & push (remnewz.db.enc)
+    Runner->>Git: ONE single consolidated commit & push to 'data' (remnewz.db.enc)
     Note over Runner: Runner terminates. Run duration: ~15-20s. Billed: 1 minute.
 ```
 
@@ -264,7 +264,7 @@ sequenceDiagram
 4. **Deadline Evaluation:** Scans tasks in the `tasks` table of `remnewz.db.enc`:
    - If a task is due (`now >= due_at`) and has not been notified $\to$ fires a due alert.
    - If a task is overdue and $\ge 24$ hours have passed since the last alert $\to$ fires a single overdue snooze nudge.
-5. **Single Batched Commit:** If and only if data changed, the runner stages the updated files, writes **one single commit** (e.g., `chore(sync): update tasks and settings [skip ci]`), and pushes back to `main`. If no commands were sent and no tasks became due, **zero commits are made**.
+5. **Single Batched Commit:** If and only if data changed, the runner stages the updated files, writes **one single commit** (e.g., `chore(sync): update tasks and settings [skip ci]`), and pushes back to `origin data`. If no commands were sent and no tasks became due, **zero commits are made**.
 
 ### 5.3 Git and Repository Policies
 - **No Commit Frequency Limits:** GitHub enforces **no limits on the number of commits** on either public or private repositories.

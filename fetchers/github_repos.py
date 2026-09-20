@@ -23,7 +23,7 @@ def _format_repo(repo: dict, seen_urls: set) -> dict | None:
     repo_url = repo.get("html_url")
     if not repo_url or repo_url in seen_urls:
         return None
-    if not repo.get("description") or repo.get("stargazers_count", 0) < 500:
+    if not repo.get("description") or repo.get("stargazers_count", 0) <= 500:
         return None
     seen_urls.add(repo_url)
     return {

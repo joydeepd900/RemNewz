@@ -65,15 +65,21 @@ If you want instantaneous responses without running a periodic cron:
 2. Verify that `ENCRYPTION_KEY` is present.
 3. Check your `data/` folder:
    - Your state database is encrypted as `remnewz.db.enc`.
-   - If you have legacy `.json` files in `data/`, do NOT make the repository public until you purge them.
+   - If you have unencrypted database files (`data/remnewz.db`, `*.db`, `*.sqlite3`) or legacy `.json` files in `data/`, do NOT make the repository public until you purge them.
 
 ### Step 2: Clean Historical Commits (If Plaintext Was Ever Committed)
 
 If you previously ran in plaintext mode and committed tasks before setting `ENCRYPTION_KEY`:
 
-1. Historical commits may still contain plaintext data.
-2. Run `git rm --cached data/*.json` and ensure `.gitignore` ignores `data/*.json`.
-3. If sensitive data was committed, consider creating an orphan branch or squashing history before making the repo public.
+1. Historical commits may still contain plaintext data or an unencrypted database binary (`data/remnewz.db`, `data/*.json`).
+2. Remove any cached plaintext files from git tracking:
+
+   ```bash
+   git rm --cached data/*.json data/*.db data/*.sqlite3 data/remnewz.db 2>/dev/null || true
+   ```
+
+   Ensure `.gitignore` contains rules shielding `*.db`, `*.sqlite3`, `data/*.json`, and `data/*.tmp`.
+3. If sensitive data was ever committed to git history, consider squashing history (or recreating the orphan `data` branch) before making the repository public.
 
 ### Step 3: Upgrade Polling Interval to 5 Minutes
 
