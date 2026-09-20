@@ -76,7 +76,7 @@ graph TB
         STORE["Store (engine/store.py)<br/>Atomic Writes (.tmp -> replace)"]
         
         BRANCH_MAIN["Git Branch: 'main'<br/>100% Clean Code • Zero .enc Files<br/>Permanent .gitignore for data/"]
-        BRANCH_DATA["Git Branch: 'data' (Worktree Mounted to /data)<br/>• todos.enc<br/>• archive_todos.enc<br/>• settings.enc<br/>• seen.enc<br/>• last_update_id.enc<br/>Auto-Provisioned on First Run • Monthly Squashed"]
+        BRANCH_DATA["Git Branch: 'data' (Worktree Mounted to /data)<br/>• remnewz.db.enc (Unified Encrypted SQLite DB: tasks, kv_store)<br/>Auto-Provisioned on First Run • Monthly Squashed"]
         
         WF_MAINT -->|"Squashes to 1 commit"| BRANCH_DATA
         REMZY <--> STORE
@@ -103,10 +103,10 @@ sequenceDiagram
     autonumber
     participant Triggers as Trigger (Cron 08:00 UTC / /digest / /news)
     participant Orchestrator as main_digest.py
-    participant Settings as engine/store.py (settings.enc)
+    participant Settings as engine/store.py (remnewz.db.enc)
     participant FetcherGH as fetchers/github_repos.py
     participant FetcherRSS as fetchers/rss_hn.py
-    participant Dedup as engine/dedup.py (seen.enc)
+    participant Dedup as engine/dedup.py (kv_store in remnewz.db.enc)
     participant AI as engine/ai_client.py
     participant Persona as personas/newzy.py
     participant Telegram as notifier/telegram.py
@@ -126,7 +126,7 @@ sequenceDiagram
     FetcherGH-->>Orchestrator: Return repo items
     FetcherRSS-->>Orchestrator: Return feed items
 
-    Orchestrator->>Dedup: Filter unseen items (against seen.enc)
+    Orchestrator->>Dedup: Filter unseen items (against kv_store in remnewz.db.enc)
     Dedup-->>Orchestrator: Unseen candidate pool
 
     Orchestrator->>Orchestrator: Rank items using feedback weights & cap to limit (default: 5)
@@ -143,7 +143,7 @@ sequenceDiagram
 
     opt mark_seen is True (Automated Digest or /digest)
         Orchestrator->>Dedup: mark_seen(item_urls) & prune_seen(retention=30 days, max=2000)
-        Dedup->>Settings: Save updated seen.enc
+        Dedup->>Settings: Persist updated seen entries to kv_store in remnewz.db.enc
     end
 ```
 
@@ -275,7 +275,7 @@ flowchart TD
     SCOPE_HELPZY -- Unmatched --> SCOPE_REMZY{Remzy Commands?}
     SCOPE_REMZY -- "/todo" --> R_TODO[Parse NLP Task & Schedule Deadline]
     SCOPE_REMZY -- "/list" --> R_LIST[Display Active Tasks]
-    SCOPE_REMZY -- "/done" --> R_DONE[Archive Task to archive_todos.enc]
+    SCOPE_REMZY -- "/done" --> R_DONE[Archive Task in tasks table of remnewz.db.enc]
     SCOPE_REMZY -- "/remove" --> R_REMOVE[Delete Task Permanently]
     SCOPE_REMZY -- "/history" --> R_HIST[Display Last 10 Archived Tasks]
 

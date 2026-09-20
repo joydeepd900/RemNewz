@@ -64,7 +64,7 @@ If you want instantaneous responses without running a periodic cron:
 1. Go to **Settings > Secrets and variables > Actions**.
 2. Verify that `ENCRYPTION_KEY` is present.
 3. Check your `data/` folder:
-   - Your state files must end in `.enc` (e.g. `todos.enc`, `settings.enc`, `seen.enc`).
+   - Your state database is encrypted as `remnewz.db.enc`.
    - If you have legacy `.json` files in `data/`, do NOT make the repository public until you purge them.
 
 ### Step 2: Clean Historical Commits (If Plaintext Was Ever Committed)

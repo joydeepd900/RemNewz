@@ -458,9 +458,9 @@ Newzy operates autonomously to discover and synthesize technical news on schedul
 
 To ensure your digest delivers genuinely impactful software and prevents noise:
 
-- **Viral New Releases (Past 7 Days):** Repositories created in the last 7 days must have at least **500 stars**.
-- **Active Momentum Repos (Past 30 Days):** Repositories with commit/push activity in the last 30 days must have at least **2,000 stars**.
-- **Recency & Quality Filter:** Candidates must meet a minimum threshold of **500 stars** and are ranked by commit/push recency.
+- **Viral New Releases (Past 7 Days):** Repositories created in the last 7 days with >500 stars (`stars:>500`).
+- **Active Momentum Repos (Past 30 Days):** Repositories with commit/push activity in the last 30 days with >2,000 stars (`stars:>2000`).
+- **Recency & Quality Filter:** Candidates must have >500 stars (`stars:>500`) and are ranked by commit/push recency.
 - **RSS Feeds:** Fetches and processes the top 10 articles per configured RSS source.
 - **Deduplication:** Delivered items are recorded in the encrypted store (`data/remnewz.db.enc`) with a **30-day retention window** (capped at **2,000 entries**) to guarantee you never receive the same news twice.
 
@@ -471,7 +471,7 @@ Each digest item includes interactive feedback buttons:
 - `[ 👍 ]`: Increases the preference weight for this item's topic tags.
 - `[ 👎 ]`: Decreases the preference weight for this item's topic tags.
 
-RemNewz records these preferences in `data/settings.enc` (encrypted at rest). Over time, the ranking engine automatically promotes topics you enjoy and suppresses topics you dislike.
+RemNewz records these preferences in `data/remnewz.db.enc` (`kv_store` table, encrypted at rest). Over time, the ranking engine automatically promotes topics you enjoy and suppresses topics you dislike.
 
 ---
 

@@ -253,7 +253,7 @@ sequenceDiagram
     TG->>User: User receives batch confirmation messages on phone
 
     Runner->>Runner: git diff --quiet check
-    Runner->>Git: ONE single consolidated commit & push (todos.enc, settings.json, last_update_id.json)
+    Runner->>Git: ONE single consolidated commit & push (remnewz.db.enc)
     Note over Runner: Runner terminates. Run duration: ~15-20s. Billed: 1 minute.
 ```
 
@@ -261,7 +261,7 @@ sequenceDiagram
 1. **Batch Ingestion:** All interactions sent during the preceding 35-minute window are fetched from Telegram in a single HTTP request.
 2. **Chronological Processing:** Commands are resolved in exact order of arrival.
 3. **Consolidated Confirmation:** The bot dispatches reply messages back to your Telegram chat.
-4. **Deadline Evaluation:** Scans tasks in `todos.enc`:
+4. **Deadline Evaluation:** Scans tasks in the `tasks` table of `remnewz.db.enc`:
    - If a task is due (`now >= due_at`) and has not been notified $\to$ fires a due alert.
    - If a task is overdue and $\ge 24$ hours have passed since the last alert $\to$ fires a single overdue snooze nudge.
 5. **Single Batched Commit:** If and only if data changed, the runner stages the updated files, writes **one single commit** (e.g., `chore(sync): update tasks and settings [skip ci]`), and pushes back to `main`. If no commands were sent and no tasks became due, **zero commits are made**.
