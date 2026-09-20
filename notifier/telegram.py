@@ -270,6 +270,6 @@ def resolve_topic_id(topic_name: str) -> int:
     return settings.get(f"topic_{topic_name}")
 
 def resolve_supergroup_id():
-    """Resolve configured supergroup chat ID from settings.json if bound."""
+    """Resolve configured supergroup chat ID from settings if bound."""
     settings = load_data("settings", {})
     return settings.get("supergroup_id")

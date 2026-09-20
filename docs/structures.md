@@ -266,7 +266,7 @@ This diagram models how incoming messages, forum supergroup threads, and Telegra
 
 ```mermaid
 flowchart TD
-    START([Incoming Telegram Update]) --> AUTH{update.message.chat.id<br/>== TELEGRAM_CHAT_ID?}
+    START([Incoming Telegram Update]) --> AUTH{"Chat ID == TELEGRAM_CHAT_ID?<br/>update.message.chat.id (message) OR<br/>update.callback_query.message.chat.id (callback)"}
     AUTH -- No --> DROP([Silently Drop Update])
     AUTH -- Yes --> MSG_TYPE{Update Type?}
 

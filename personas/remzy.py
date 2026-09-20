@@ -171,7 +171,7 @@ class Remzy:
                 "🎯 <b>Completion & Compliance</b>\n"
                 f"• <b>Active Backlog:</b> {stats['active_count']} pending\n"
                 f"• <b>Retained History:</b> {stats['archived_count']} completed tasks\n"
-                f"• <b>Recent Progress:</b> [{progress_bar}] {pct}%\n"
+                f"• <b>All-Time Progress:</b> [{progress_bar}] {pct}%\n"
                 f"• <b>Deadline Compliance:</b> {comp_rate_str}\n\n"
                 "⏰ <b>Deadline Health</b>\n"
                 f"• {overdue_icon} <b>Overdue Now:</b> {stats['overdue_count']}{overdue_hint}\n"

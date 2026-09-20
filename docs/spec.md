@@ -101,7 +101,7 @@ RemNewz operates as a single Telegram bot presenting three specialized personas 
 
 ### 4.4 Security, Platform & Privacy
 
-- **FR16 — Single-User Authorization:** Verify incoming message `chat.id == TELEGRAM_CHAT_ID` or sender in group. Silently ignore any updates from unauthorized users.
+- **FR16 — Single-User Authorization:** Strict chat allowlist verifying `update.message.chat.id == TELEGRAM_CHAT_ID` for message updates and `update.callback_query.message.chat.id == TELEGRAM_CHAT_ID` for button callback queries (or authorized sender in group). Silently drop and ignore any updates from unauthorized chats or users before processing.
 - **FR17 — Secret Isolation:** Zero secrets, tokens, or credentials in source code or git history. All credentials injected via GitHub Actions Secrets.
 - **FR18 — Dual-Branch Storage & Unified SQLite Engine:**
   - Standardizes the **Unified Encrypted SQLite Engine (`data/remnewz.db.enc`)** backed by Fernet encryption-at-rest (`ENCRYPTION_KEY`). Unifies tasks, settings (stored in the `kv_store` table of the unified `remnewz.db.enc` database), deduplication (30 days / 2,000 items), and update offsets into a single transactional database.

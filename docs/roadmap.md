@@ -61,18 +61,18 @@ This roadmap divides the build into modular, verifiable phases. Each phase concl
   - Build `personas/remzy.py` command router:
     - **NLP `/todo` Parser:** Uses AI client structured output to extract title, deadline, and priority from natural text (with regex fallback).
     - **Inline Button Handler:** Captures `callback_query` from Newzy's `[ 📌 Remind Me ]` button and auto-creates a task.
-    - **Feedback Handler:** Captures `[ 👍 ]` and `[ 👎 ]` button callbacks and adjusts tag weights in `data/settings.json`.
+    - **Feedback Handler:** Captures `[ 👍 ]` and `[ 👎 ]` button callbacks and adjusts tag weights in the encrypted `kv_store` in `data/remnewz.db.enc`.
     - **Commands:** `/list`, `/done <id>`, `/remove <id>`, `/history`.
   - Build `personas/helpzy.py` settings dispatcher:
     - Commands: `/config`, `/config add_topic`, `/config remove_topic`, `/config set_tz`, `/config set_style`, `/help`.
-    - Persist overrides to `data/settings.json`.
+    - Persist overrides, settings, and timezone configuration to the encrypted `kv_store` in `data/remnewz.db.enc`.
   - Create `commands.yml` workflow running on a **5-minute schedule** (`*/5 * * * *`) as the repo is public (or via webhook for lower latency).
   - Add GitHub Actions `concurrency: git-state-storage` and `git pull --rebase` retry loop ensuring all actions during the window produce **at most one consolidated commit**.
 - **Verification Milestone:**
   - Tap `[ 📌 Remind Me ]` on a news item $\to$ confirm it appears in `/list`.
   - Send `/todo read paper tomorrow 5pm` $\to$ confirm Remzy parses deadline correctly.
   - Mark `/done` $\to$ confirm item moves to `/history`.
-  - Adjust a setting with Helpzy $\to$ confirm `data/settings.json` is committed cleanly in a single batched commit.
+  - Adjust a setting with Helpzy $\to$ confirm settings in `kv_store` within `data/remnewz.db.enc` are committed cleanly in a single batched commit.
 
 ---
 

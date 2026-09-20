@@ -409,6 +409,8 @@ class TaskStore:
         """Compute productivity and completion statistics directly from the database."""
         if now_utc is None:
             now_utc = datetime.now(timezone.utc)
+        elif now_utc.tzinfo is None:
+            now_utc = now_utc.replace(tzinfo=timezone.utc)
             
         conn = self._get_active_conn()
         cur = conn.cursor()
