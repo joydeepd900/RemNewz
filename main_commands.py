@@ -26,16 +26,39 @@ from personas.helpzy import Helpzy
 from notifier.telegram import get_updates, answer_callback_query
 
 def load_last_update_id() -> int:
+    """
+    Retrieve the most recently processed Telegram update ID from the encrypted store.
+    
+    Returns:
+        int: The last update ID, or -1 if no updates have been processed.
+    """
     data = load_data("last_update_id", {})
     return data.get("last_id", -1) if data else -1
 
 def save_last_update_id(last_id: int):
+    """
+    Persist the most recently processed Telegram update ID to the encrypted store.
+    
+    Args:
+        last_id (int): The ID of the highest processed update.
+    """
     try:
         save_data("last_update_id", {"last_id": last_id})
     except Exception as e:
         print(f"[main_commands] Failed to save last_update_id: {e}")
 
 def run_pipeline():
+    """
+    Execute the core command processing pipeline.
+    
+    This function initializes the database, resolves configuration settings,
+    fetches new Telegram updates (either via webhook payload or polling),
+    routes them to the appropriate persona (Remzy/Helpzy), and evaluates
+    deadlines for task notifications.
+    
+    Returns:
+        int: Exit status code (0 for success).
+    """
     print("[main_commands] Starting RemNewz commands pipeline (Phase 3)...")
     init_db()
     
@@ -151,6 +174,11 @@ def run_pipeline():
     return 0
 
 def main():
+    """
+    Main entry point for the commands workflow.
+    Ensures that the encrypted database is initialized and properly closed
+    even if the pipeline raises an exception.
+    """
     init_db()
     try:
         return run_pipeline()

@@ -43,6 +43,13 @@ SCOPES = [
 ]
 
 def register_commands():
+    """
+    Pushes standard command menus to the Telegram Bot API for client auto-completion.
+    
+    This function broadcasts the command list across all relevant user scopes
+    (default, private chats, group chats, and administrators) to ensure a 
+    seamless UX across different chat contexts.
+    """
     print("Registering commands for bot...")
     
     success = True

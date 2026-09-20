@@ -2,14 +2,30 @@ import feedparser
 import re
 
 def strip_html(text: str) -> str:
-    """Strip HTML tags from text."""
+    """
+    Strip HTML tags from a given text string.
+    
+    Args:
+        text (str): The raw text potentially containing HTML tags.
+        
+    Returns:
+        str: The sanitized plain text string.
+    """
     if not text:
         return ""
     clean = re.compile('<.*?>')
     return re.sub(clean, '', text)
 
 def fetch_rss_feeds(config: dict) -> list:
-    """Fetch RSS feeds specified in config."""
+    """
+    Fetch and parse RSS/Atom feeds specified in the configuration.
+    
+    Args:
+        config (dict): The active configuration dictionary containing 'rss_feeds'.
+        
+    Returns:
+        list: A list of standardized dictionaries representing recent feed entries.
+    """
     feeds = config.get("rss_feeds", [])
     if not feeds:
         return []

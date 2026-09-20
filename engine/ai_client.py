@@ -5,9 +5,21 @@ import re
 
 def synthesize_item(item: dict, style: str, provider: str, model: str) -> tuple[str, str | None]:
     """
-    Use an AI provider to summarize/synthesize a single news item based on the requested style.
-    Returns a tuple of (synthesized_text, topic).
-    If provider is 'none' or fails, returns (fallback_string, None).
+    Synthesize a single news item based on the requested style using the specified AI provider.
+    
+    This function selects the appropriate provider client (Gemini, OpenRouter, Groq) to generate
+    a summary. If the provider is set to 'none', or if an error occurs during synthesis, it falls
+    back to a deterministic formatting method.
+    
+    Args:
+        item (dict): The news item dictionary (containing title, url, source, etc.).
+        style (str): The requested summarization style (e.g., 'concise', 'bullet_points').
+        provider (str): The AI provider to use ('gemini', 'openrouter', 'groq', or 'none').
+        model (str): The specific model identifier for the provider.
+        
+    Returns:
+        tuple[str, str | None]: A tuple containing the synthesized text (HTML formatted)
+        and an optional extracted topic string.
     """
     if provider.lower() == "none" or not model:
         return _deterministic_fallback(item)
@@ -38,6 +50,16 @@ def synthesize_item(item: dict, style: str, provider: str, model: str) -> tuple[
         return _deterministic_fallback(item)
 
 def _build_prompt(item: dict, style: str) -> str:
+    """
+    Construct the summarization prompt for the AI model.
+    
+    Args:
+        item (dict): The news item to summarize.
+        style (str): The preferred summary style.
+        
+    Returns:
+        str: The fully constructed prompt string.
+    """
     stars_info = f"\nStars: ⭐ {item['stars']:,}" if item.get('stars') else ""
     return f"""
 You are an expert tech summarizer. Summarize the following news item in the '{style}' style.
@@ -54,6 +76,20 @@ Description: {item.get('summary')}
 """
 
 def _call_gemini(prompt: str, model: str) -> str:
+    """
+    Invoke the Google Gemini API to generate content.
+    
+    Args:
+        prompt (str): The prompt to send to the model.
+        model (str): The model identifier.
+        
+    Returns:
+        str: The raw generated text from the model.
+        
+    Raises:
+        ValueError: If the API key is not set or the response format is unexpected.
+        requests.exceptions.RequestException: If the network request fails.
+    """
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         raise ValueError("GEMINI_API_KEY not set")
@@ -77,6 +113,20 @@ def _call_gemini(prompt: str, model: str) -> str:
         raise ValueError("Unexpected response format from Gemini")
 
 def _call_openrouter(prompt: str, model: str) -> str:
+    """
+    Invoke the OpenRouter API to generate content.
+    
+    Args:
+        prompt (str): The prompt to send to the model.
+        model (str): The model identifier.
+        
+    Returns:
+        str: The raw generated text from the model.
+        
+    Raises:
+        ValueError: If the API key is not set or the response format is unexpected.
+        requests.exceptions.RequestException: If the network request fails.
+    """
     api_key = os.environ.get("OPENROUTER_API_KEY")
     if not api_key:
         raise ValueError("OPENROUTER_API_KEY not set")
@@ -101,6 +151,20 @@ def _call_openrouter(prompt: str, model: str) -> str:
         raise ValueError("Unexpected response format from OpenRouter")
 
 def _call_groq(prompt: str, model: str) -> str:
+    """
+    Invoke the Groq API to generate content.
+    
+    Args:
+        prompt (str): The prompt to send to the model.
+        model (str): The model identifier.
+        
+    Returns:
+        str: The raw generated text from the model.
+        
+    Raises:
+        ValueError: If the API key is not set or the response format is unexpected.
+        requests.exceptions.RequestException: If the network request fails.
+    """
     api_key = os.environ.get("GROQ_API_KEY")
     if not api_key:
         raise ValueError("GROQ_API_KEY not set")
@@ -149,8 +213,19 @@ from datetime import datetime, timezone, timedelta
 
 def parse_task_nlp(text: str, provider: str, model: str, user_tz: str) -> dict:
     """
-    Parse a natural language task description into structured data using AI.
-    Returns: {"title": str, "due_at": "ISO", "priority": "normal|high"}
+    Parse a natural language task description into structured JSON data using AI.
+    
+    The AI model determines the task title, absolute due date (converted to UTC), and priority
+    based on the user's input and timezone.
+    
+    Args:
+        text (str): The raw natural language input from the user.
+        provider (str): The AI provider to use.
+        model (str): The AI model identifier.
+        user_tz (str): The user's local timezone (e.g., 'America/New_York').
+        
+    Returns:
+        dict: A dictionary containing 'title' (str), 'due_at' (str ISO timestamp), and 'priority' (str).
     """
     if provider.lower() == "none" or not model:
         return _deterministic_task_fallback(text, user_tz)
@@ -213,7 +288,18 @@ def _deterministic_task_fallback(text: str, user_tz: str) -> dict:
 
 def normalize_topic_to_slug(topic: str, provider: str, model: str) -> str:
     """
-    Convert a user tech topic into a valid, canonical GitHub topic slug using AI.
+    Convert a user-provided tech topic into a canonical GitHub topic slug using AI.
+    
+    This ensures that topics used in GitHub repository searches conform to standard
+    formatting conventions (lowercase, alphanumeric, and hyphens).
+    
+    Args:
+        topic (str): The raw topic string from the user.
+        provider (str): The AI provider to use.
+        model (str): The AI model identifier.
+        
+    Returns:
+        str: The canonical slugified string.
     """
     if provider.lower() == "none" or not model:
         return _deterministic_slug_fallback(topic)

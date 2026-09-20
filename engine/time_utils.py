@@ -13,10 +13,15 @@ from dateutil import tz as dateutil_tz
 
 
 def get_user_timezone():
-    """Return a tzinfo object for the user's configured timezone.
-
-    Reads TIMEZONE from env (IANA format, e.g. 'Asia/Kolkata').
-    Falls back to UTC if not set or invalid.
+    """
+    Retrieve a tzinfo object representing the user's configured timezone.
+    
+    This function reads the 'TIMEZONE' environment variable (expected in IANA 
+    format, e.g., 'America/New_York'). If the variable is missing or invalid, 
+    it logs a warning and defaults to UTC to prevent runtime failures.
+    
+    Returns:
+        dateutil.tz.tzinfo: The resolved timezone object.
     """
     tz_name = os.environ.get("TIMEZONE", "UTC")
     user_tz = dateutil_tz.gettz(tz_name)
@@ -27,23 +32,33 @@ def get_user_timezone():
 
 
 def now_local():
-    """Return the current datetime in the user's timezone."""
+    """
+    Retrieve the current datetime localized to the user's configured timezone.
+    
+    Returns:
+        datetime: The current localized datetime object.
+    """
     return datetime.now(tz=get_user_timezone())
 
 
 def format_datetime(dt, style="full"):
-    """Format a datetime for display in Telegram messages.
-
+    """
+    Format a datetime object into a human-readable string for Telegram messages.
+    
+    This function automatically localizes naive datetime objects to the user's 
+    configured timezone before formatting.
+    
     Args:
-        dt: A datetime object (timezone-aware or naive).
-        style: 'full'  → 'Mon, 15 Sep 2026 · 08:00 AM IST'
-               'short' → '15 Sep, 08:00 AM'
-               'time'  → '08:00 AM'
-               'date'  → '15 Sep 2026'
-               'relative' → 'in 3 hours' / '2 days ago'
-
+        dt (datetime): A datetime object (timezone-aware or naive).
+        style (str): The desired formatting style. Supported options:
+            - 'full'     → 'Mon, 15 Sep 2026 · 08:00 AM IST'
+            - 'short'    → '15 Sep, 08:00 AM'
+            - 'time'     → '08:00 AM'
+            - 'date'     → '15 Sep 2026'
+            - 'relative' → 'in 3 hours' or '2 days ago'
+            
     Returns:
-        A formatted string.
+        str: The formatted datetime string.
     """
     user_tz = get_user_timezone()
 

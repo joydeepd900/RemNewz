@@ -7,6 +7,12 @@ MAX_ITEMS = 2000
 RETENTION_DAYS = 30
 
 class DedupManager:
+    """
+    Manages deduplication of seen news items to prevent repetitive deliveries.
+    
+    Uses an encrypted key-value store to persist the history of sent items.
+    Enforces retention limits (e.g., max 2000 items, max 30 days) during pruning.
+    """
     def __init__(self, *args, **kwargs):
         self.seen_items = {}
         self._load()
@@ -23,17 +29,36 @@ class DedupManager:
             print(f"[dedup] Failed to save seen items: {e}")
 
     def is_seen(self, item_id: str) -> bool:
-        """Check if an item has been seen."""
+        """
+        Check if an item identifier has already been processed.
+        
+        Args:
+            item_id (str): The unique identifier for the item.
+            
+        Returns:
+            bool: True if the item is present in the seen history, False otherwise.
+        """
         return item_id in self.seen_items
 
     def mark_seen(self, item_id: str):
-        """Mark an item as seen with the current timestamp."""
+        """
+        Record an item as seen using the current UTC timestamp.
+        
+        Args:
+            item_id (str): The unique identifier for the item.
+        """
         # Store timestamp in ISO 8601 format
         self.seen_items[item_id] = datetime.now(timezone.utc).isoformat()
         self._save()
 
     def prune(self):
-        """Prune old items based on retention policy (30 days or 2000 max items)."""
+        """
+        Remove stale entries based on configured retention limits.
+        
+        Discards any seen records older than the maximum retention period (30 days)
+        and enforces an absolute limit on the total number of items stored (2000)
+        to prevent database bloat.
+        """
         if not self.seen_items:
             return
 

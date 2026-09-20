@@ -24,7 +24,15 @@ INITIAL_BACKOFF_SECONDS = 1
 
 
 def _get_bot_token():
-    """Get the Telegram bot token from environment."""
+    """
+    Retrieve the Telegram Bot API token from environment variables.
+    
+    Returns:
+        str: The bot token.
+        
+    Raises:
+        EnvironmentError: If TELEGRAM_BOT_TOKEN is not configured.
+    """
     token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
     if not token:
         raise EnvironmentError("TELEGRAM_BOT_TOKEN is not set in environment.")
@@ -32,7 +40,15 @@ def _get_bot_token():
 
 
 def _get_chat_id():
-    """Get the target chat ID from environment."""
+    """
+    Retrieve the primary target Telegram chat ID from environment variables.
+    
+    Returns:
+        str: The chat ID.
+        
+    Raises:
+        EnvironmentError: If TELEGRAM_CHAT_ID is not configured.
+    """
     chat_id = os.environ.get("TELEGRAM_CHAT_ID", "")
     if not chat_id:
         raise EnvironmentError("TELEGRAM_CHAT_ID is not set in environment.")
@@ -40,16 +56,32 @@ def _get_chat_id():
 
 
 def _api_url(method):
-    """Build a Telegram Bot API URL."""
+    """
+    Construct the full HTTPS URL for a specific Telegram Bot API method.
+    
+    Args:
+        method (str): The API method name (e.g., 'sendMessage').
+        
+    Returns:
+        str: The fully qualified API URL.
+    """
     return f"https://api.telegram.org/bot{_get_bot_token()}/{method}"
 
 
 def _chunk_message(text, max_length=MAX_MESSAGE_LENGTH):
-    """Split a message into chunks that fit within Telegram's character limit.
+    """
+    Split a lengthy text payload into chunks that fit within Telegram's character limits.
 
-    Splits at line boundaries to preserve HTML formatting.
-    Tracks open tags to close and reopen them across chunks.
-    If a line is too long, it tries to split it without breaking HTML tags.
+    This function carefully splits text at line boundaries to avoid breaking HTML syntax.
+    It tracks open HTML tags across boundaries, ensuring they are cleanly closed at the 
+    end of one chunk and reopened at the start of the next chunk.
+    
+    Args:
+        text (str): The HTML-formatted message text to split.
+        max_length (int): Maximum allowed characters per chunk (default: 4096).
+        
+    Returns:
+        list[str]: A list of message chunks.
     """
     if len(text) <= max_length:
         return [text]
@@ -139,21 +171,22 @@ def _chunk_message(text, max_length=MAX_MESSAGE_LENGTH):
     return chunks
 
 def send_message(text, parse_mode="HTML", reply_markup=None, disable_preview=True, chat_id=None, message_thread_id=None):
-    """Send a message to the configured Telegram chat, with auto-chunking.
+    """
+    Transmit a message to a Telegram chat, handling long text by chunking automatically.
 
     Args:
-        text: Message text (HTML formatted).
-        parse_mode: Telegram parse mode ('HTML' or 'MarkdownV2').
-        reply_markup: Optional dict for inline keyboard markup.
-        disable_preview: Whether to disable link previews.
-        chat_id: Optional chat ID. If None, uses default from env.
-        message_thread_id: Optional message_thread_id for forum topics.
+        text (str): The message text body (HTML formatted by default).
+        parse_mode (str): Formatting mode for Telegram ('HTML' or 'MarkdownV2').
+        reply_markup (dict, optional): A dictionary defining an inline keyboard matrix.
+        disable_preview (bool): Whether to suppress URL link previews in the client.
+        chat_id (str, optional): The target chat ID. Defaults to the environment configuration.
+        message_thread_id (int, optional): The thread ID for forum topics within a supergroup.
 
     Returns:
-        List of API response dicts (one per chunk).
+        list[dict]: A list containing the JSON responses from the API for each chunk sent.
 
     Raises:
-        requests.HTTPError: If all retries fail.
+        requests.HTTPError: If the maximum number of network retries is exhausted.
     """
     target_chat_id = chat_id if chat_id else _get_chat_id()
     chunks = _chunk_message(text)
@@ -181,16 +214,21 @@ def send_message(text, parse_mode="HTML", reply_markup=None, disable_preview=Tru
 
 
 def _send_with_retry(payload):
-    """Send a single message with exponential backoff retry.
+    """
+    Execute a POST request to Telegram with built-in exponential backoff.
+
+    Handles temporary network failures and Telegram API rate limits (HTTP 429),
+    backing off and retrying automatically. Also attempts a fallback to plain 
+    text if the Telegram server rejects the payload due to HTML parsing errors.
 
     Args:
-        payload: The complete API payload dict.
+        payload (dict): The complete JSON payload for the API request.
 
     Returns:
-        The API response JSON dict.
+        dict: The parsed JSON response from the API.
 
     Raises:
-        requests.HTTPError: If all retries are exhausted.
+        requests.HTTPError: If all retry attempts are exhausted without success.
     """
     url = _api_url("sendMessage")
     backoff = INITIAL_BACKOFF_SECONDS
@@ -241,16 +279,16 @@ def _send_with_retry(payload):
 
 
 def build_inline_keyboard(buttons):
-    """Build a Telegram InlineKeyboardMarkup from a list of button rows.
+    """
+    Construct a valid Telegram InlineKeyboardMarkup dictionary from a layout definition.
 
     Args:
-        buttons: List of lists, where each inner list contains dicts with
-                 'text' and 'callback_data' keys.
-                 Example: [[{"text": "👍", "callback_data": "like_123"},
-                             {"text": "👎", "callback_data": "dislike_123"}]]
+        buttons (list[list[dict]]): A matrix (list of lists) representing rows and 
+                                    columns of buttons. Each button dict should contain
+                                    'text' and 'callback_data'.
 
     Returns:
-        A dict suitable for the reply_markup parameter.
+        dict: A dictionary structure compatible with the Telegram API 'reply_markup' field.
     """
     return {
         "inline_keyboard": [
@@ -260,14 +298,15 @@ def build_inline_keyboard(buttons):
     }
 
 def get_updates(offset=None, timeout=30):
-    """Fetch recent updates from Telegram.
+    """
+    Poll the Telegram server for recent inbound updates (messages, callbacks, etc.).
     
     Args:
-        offset: The update_id to start fetching from.
-        timeout: Long polling timeout in seconds.
+        offset (int, optional): The update_id to start fetching from. Used to acknowledge previous updates.
+        timeout (int): The long-polling timeout in seconds.
         
     Returns:
-        List of update dicts.
+        list[dict]: A list containing update payload dictionaries.
     """
     url = _api_url("getUpdates")
     payload = {"timeout": timeout}
@@ -286,7 +325,13 @@ def get_updates(offset=None, timeout=30):
     return []
 
 def answer_callback_query(callback_query_id, text=None):
-    """Acknowledge a callback query to remove the loading state on the button."""
+    """
+    Acknowledge a Telegram callback query to dismiss the loading indicator on the client.
+    
+    Args:
+        callback_query_id (str): The unique ID of the callback query to answer.
+        text (str, optional): A brief notification text to display to the user.
+    """
     url = _api_url("answerCallbackQuery")
     payload = {"callback_query_id": callback_query_id}
     if text:
@@ -298,11 +343,24 @@ def answer_callback_query(callback_query_id, text=None):
         print(f"[telegram] answerCallbackQuery failed: {e}")
 
 def resolve_topic_id(topic_name: str) -> int:
-    """Resolve configured topic ID from settings if bound."""
+    """
+    Resolve the configured forum topic ID from user settings.
+    
+    Args:
+        topic_name (str): The logical name of the topic (e.g., 'news', 'tasks').
+        
+    Returns:
+        int: The thread ID of the specified topic, or None if not bound.
+    """
     settings = load_data("settings", {})
     return settings.get(f"topic_{topic_name}")
 
 def resolve_supergroup_id():
-    """Resolve configured supergroup chat ID from settings if bound."""
+    """
+    Resolve the configured master supergroup ID from user settings.
+    
+    Returns:
+        int | None: The chat ID of the authorized supergroup, if bound.
+    """
     settings = load_data("settings", {})
     return settings.get("supergroup_id")

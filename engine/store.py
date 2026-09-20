@@ -33,7 +33,20 @@ def _atomic_write_file(file_path, data, is_binary=False):
     os.replace(tmp_path, file_path)
 
 def init_db(db_path=DB_FILE):
-    """Decrypts DB (if exists) and initializes SQLite connection."""
+    """
+    Decrypt the SQLite database (if it exists) and initialize the global connection.
+    
+    This function creates the data directory, determines whether decryption is
+    required (e.g., if the encrypted snapshot is newer than the plaintext file),
+    and creates the standard 'kv_store' and 'tasks' tables if they do not exist.
+    It also triggers a one-time migration for legacy JSON/ENC files.
+    
+    Args:
+        db_path (str): Path to the plaintext SQLite database file.
+        
+    Returns:
+        sqlite3.Connection: The initialized SQLite connection object.
+    """
     global _conn
     if _conn is not None:
         return _conn
@@ -145,13 +158,25 @@ def _migrate_legacy_files(crypto, conn):
     _migrate_task_files(crypto, conn)
 
 def get_conn():
+    """
+    Retrieve the active SQLite global connection, initializing it if necessary.
+    
+    Returns:
+        sqlite3.Connection: The active SQLite connection object.
+    """
     global _conn
     if _conn is None:
         init_db()
     return _conn
 
 def close_db():
-    """Encrypts DB back to .enc and deletes plaintext file."""
+    """
+    Commit transactions, close the database, encrypt it, and delete the plaintext file.
+    
+    This lifecycle function ensures that the plaintext database is safely encrypted 
+    to a .enc file before the process exits, verifying that the file is only deleted 
+    after successful encryption to prevent data loss.
+    """
     global _conn
     if _conn is None:
         return
@@ -197,6 +222,13 @@ def save_data(key, data):
                      (key, json.dumps(data)))
 
 class TaskStore:
+    """
+    High-level interface for managing active and archived tasks in SQLite.
+    
+    This class handles the parsing, saving, updating, deleting, and archiving
+    of tasks. It also interfaces with the global SQLite connection, or an 
+    in-memory connection if instantiated with custom test paths.
+    """
     def __init__(self, 
                  todos_path=TODOS_FILE, 
                  archive_path=ARCHIVE_FILE, 

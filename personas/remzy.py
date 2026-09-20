@@ -7,11 +7,33 @@ from engine.ai_client import parse_task_nlp
 from notifier.telegram import send_message, resolve_topic_id, resolve_supergroup_id
 
 class Remzy:
+    """
+    Remzy acts as the task management and reminder persona.
+    
+    It handles natural language task creation, tracks completions, generates
+    productivity analytics, and dispatches due/overdue notifications.
+    """
     def __init__(self):
         self.store = TaskStore()
 
     def handle_command(self, text: str, provider: str, model: str, user_tz: str, message_thread_id: int = None, chat_id: str = None) -> bool:
-        """Process a Remzy command. Returns True if handled."""
+        """
+        Process incoming Telegram commands directed at the Remzy persona.
+        
+        Evaluates commands like /todo, /list, /done, /remove, /search, and /stats.
+        Returns True if the command was recognized and handled, otherwise False.
+        
+        Args:
+            text (str): The raw text of the incoming message.
+            provider (str): AI provider string for natural language parsing.
+            model (str): AI model identifier.
+            user_tz (str): The user's local timezone for date resolution.
+            message_thread_id (int, optional): The forum thread ID.
+            chat_id (str, optional): The Telegram chat ID.
+            
+        Returns:
+            bool: True if command was handled by Remzy, False otherwise.
+        """
         parts = text.strip().split()
         if not parts:
             return False
@@ -188,7 +210,17 @@ class Remzy:
         return False
 
     def handle_remind_me(self, callback_data: str, message_thread_id: int = None, chat_id: str = None):
-        """Create a task from a Remind Me button."""
+        """
+        Create a follow-up task originating from an interactive inline button.
+        
+        Parses the attached item context from the callback data and defaults the
+        due date to 24 hours in the future.
+        
+        Args:
+            callback_data (str): The payload attached to the 'Remind Me' button.
+            message_thread_id (int, optional): The forum thread ID.
+            chat_id (str, optional): The Telegram chat ID.
+        """
         # Extract context if present (remind_me:Title...)
         parts = callback_data.split(":", 1)
         item_title = parts[1].strip() if len(parts) > 1 and parts[1].strip() else "News Item"
@@ -209,7 +241,13 @@ class Remzy:
         send_message(f"📌 Task Created: <b>{safe_title}</b>\n📅 Due: Tomorrow\n🆔 <code>{task['id']}</code>", chat_id=chat_id, message_thread_id=message_thread_id)
         
     def check_deadlines(self):
-        """Evaluate task deadlines and send due/overdue notifications."""
+        """
+        Evaluate active task deadlines and dispatch due/overdue notifications.
+        
+        Checks tasks against the current UTC time. Sends an initial due alert 
+        and follows up with overdue nudges every 24 hours until the task is marked done.
+        Routes alerts to configured task topics if running in a supergroup.
+        """
         now_utc = datetime.now(timezone.utc)
         dirty = False
         

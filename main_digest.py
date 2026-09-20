@@ -31,7 +31,12 @@ from engine.dedup import DedupManager
 from engine.ai_client import synthesize_item
 
 def load_config() -> dict:
-    """Load configuration from config.yml or config.example.yml."""
+    """
+    Load configuration settings from config.yml or fallback to config.example.yml.
+    
+    Returns:
+        dict: The loaded configuration dictionary, or an empty dictionary if no file is found.
+    """
     if os.path.exists("config.yml"):
         path = "config.yml"
     elif os.path.exists("config.example.yml"):
@@ -44,6 +49,19 @@ def load_config() -> dict:
         return yaml.safe_load(f) or {}
 
 def run_digest(chat_id=None, message_thread_id=None, max_items=None, mark_seen=True, query=None) -> int:
+    """
+    Execute the core digest pipeline to fetch, deduplicate, synthesize, and send news.
+    
+    Args:
+        chat_id (str, optional): Target Telegram chat ID. Defaults to environment setting.
+        message_thread_id (int, optional): Target topic thread ID for Supergroups.
+        max_items (int, optional): Maximum number of items to process. Overrides config limit.
+        mark_seen (bool, optional): Whether to mark processed items as seen in the deduplication store.
+        query (str, optional): Specific search query to override general topics (used for /news).
+        
+    Returns:
+        int: Exit status code (0 for success).
+    """
     print("[main_digest] Starting RemNewz digest pipeline...")
     
     config = load_config()
@@ -154,6 +172,11 @@ def run_digest(chat_id=None, message_thread_id=None, max_items=None, mark_seen=T
     return 0
 
 def main():
+    """
+    Main entry point for the scheduled digest workflow.
+    Ensures that the encrypted database is initialized and properly closed
+    even if the pipeline raises an exception.
+    """
     init_db()
     try:
         return run_digest()

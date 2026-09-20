@@ -6,6 +6,13 @@ from engine.ai_client import normalize_topic_to_slug
 from main_digest import run_digest
 
 class Helpzy:
+    """
+    Helpzy acts as the configuration and settings manager persona.
+    
+    It handles commands related to sources (RSS/Topics), digest configurations,
+    timezone settings, and displays help/status menus. State is persisted to the
+    encrypted store.
+    """
     def __init__(self, file_path: str = None, *args, **kwargs):
         self.file_path = file_path
         self.settings = {}
@@ -42,7 +49,20 @@ class Helpzy:
         return f"https://github.com/YOUR_USERNAME/YOUR_REPO/edit/main/.github/workflows/{workflow_name}"
 
     def handle_command(self, text: str, message_thread_id: int = None, chat_id: str = None) -> bool:
-        """Process a Helpzy command. Returns True if handled."""
+        """
+        Process incoming Telegram commands directed at the Helpzy persona.
+        
+        Evaluates commands like /help, /config, /source, /news, and /digest.
+        Returns True if the command was recognized and handled, otherwise False.
+        
+        Args:
+            text (str): The raw text of the incoming message.
+            message_thread_id (int, optional): The forum thread ID, if applicable.
+            chat_id (str, optional): The Telegram chat ID.
+            
+        Returns:
+            bool: True if command was handled by Helpzy, False otherwise.
+        """
         parts = text.strip().split()
         if not parts:
             return False
@@ -177,7 +197,16 @@ class Helpzy:
         return False
 
     def _handle_source_command(self, args: list, message_thread_id: int = None, chat_id: str = None):
-        """Handle /source [add|remove|list] commands."""
+        """
+        Execute sub-commands related to RSS feeds and GitHub topics management.
+        
+        Provides functionality to list, add, or remove custom news sources.
+        
+        Args:
+            args (list): List of arguments following the base command.
+            message_thread_id (int, optional): The forum thread ID.
+            chat_id (str, optional): The Telegram chat ID.
+        """
         feeds = list(self.settings.get("rss_feeds", []))
         
         if not args or args[0].lower() in ["list", "show"]:
@@ -278,7 +307,16 @@ class Helpzy:
             send_message("❌ Unknown /source action. Use <code>/source</code>, <code>/source add &lt;url&gt;</code>, or <code>/source remove &lt;num&gt;</code>.", chat_id=chat_id, message_thread_id=message_thread_id)
 
     def _send_repo_mode_info(self, message_thread_id: int = None, chat_id: str = None):
-        """Explain public vs private repo differences and provide direct workflow edit link."""
+        """
+        Explain the operational differences between Public and Private GitHub repositories.
+        
+        Provides context on GitHub Actions polling quotas and generates a direct link
+        for the user to edit their schedule in `commands.yml`.
+        
+        Args:
+            message_thread_id (int, optional): The forum thread ID.
+            chat_id (str, optional): The Telegram chat ID.
+        """
         edit_url = self._get_workflow_edit_url("commands.yml")
         msg = (
             "⚙️ <b>Repository Mode & Polling Schedule</b>\n\n"
@@ -293,7 +331,16 @@ class Helpzy:
         send_message(msg, chat_id=chat_id, message_thread_id=message_thread_id)
 
     def handle_feedback(self, data: str, weight: int):
-        """Adjust weight of a topic based on likes/dislikes. Data is like_<topic> or dislike_<topic>."""
+        """
+        Adjust the priority weight of a specific topic based on user feedback.
+        
+        Parses callback data formatted as 'like_<topic>' or 'dislike_<topic>' and
+        updates the stored tag weights accordingly to tune future AI filtering.
+        
+        Args:
+            data (str): The raw callback string payload from Telegram.
+            weight (int): The numerical adjustment to apply (+1 or -1).
+        """
         parts = data.split("_", 1)
         if len(parts) < 2:
             return
