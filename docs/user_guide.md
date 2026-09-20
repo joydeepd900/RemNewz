@@ -462,7 +462,7 @@ To ensure your digest delivers genuinely impactful software and prevents noise:
 - **Active Momentum Repos (Past 30 Days):** Repositories with commit/push activity in the last 30 days with >2,000 stars (`stars:>2000`).
 - **Recency & Quality Filter:** Candidates must have >500 stars (`stars:>500`) and are ranked by commit/push recency.
 - **RSS Feeds:** Fetches and processes the top 10 articles per configured RSS source.
-- **Deduplication:** Delivered items are recorded in the encrypted store (`data/remnewz.db.enc`) with a **30-day retention window** (capped at **2,000 entries**) to guarantee you never receive the same news twice.
+- **Deduplication:** Delivered items are recorded in the encrypted store (`data/remnewz.db.enc`) with a **30-day retention window** (capped at **2,000 entries**), preventing duplicate delivery while an item remains within this retention window.
 
 ### Interactive Feedback
 

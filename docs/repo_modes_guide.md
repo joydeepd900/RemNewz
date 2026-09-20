@@ -71,15 +71,26 @@ If you want instantaneous responses without running a periodic cron:
 
 If you previously ran in plaintext mode and committed tasks before setting `ENCRYPTION_KEY`:
 
-1. Historical commits may still contain plaintext data or an unencrypted database binary (`data/remnewz.db`, `data/*.json`).
-2. Remove any cached plaintext files from git tracking:
+1. Historical commits may still contain plaintext tasks or an unencrypted database binary (`data/remnewz.db`, `data/*.json`).
+2. Untrack plaintext database and state files from git:
 
    ```bash
-   git rm --cached data/*.json data/*.db data/*.sqlite3 data/remnewz.db 2>/dev/null || true
+   git rm --cached data/*.json data/*.db data/*.sqlite3 data/remnewz.db
    ```
 
    Ensure `.gitignore` contains rules shielding `*.db`, `*.sqlite3`, `data/*.json`, and `data/*.tmp`.
-3. If sensitive data was ever committed to git history, consider squashing history (or recreating the orphan `data` branch) before making the repository public.
+3. **Mandatory History Purge:** Untracking files only prevents future commits. To guarantee sensitive plaintext data is not exposed when switching visibility to public, you **must** purge history by recreating the orphan `data` branch with only the encrypted database:
+
+   ```bash
+   git checkout --orphan data-clean
+   git rm -rf .
+   git add data/remnewz.db.enc
+   git commit -m "chore(init): initial encrypted state"
+   git branch -M data-clean data
+   git push -f origin data
+   ```
+
+   Alternatively, rewrite repository history using tools such as `git filter-repo` to permanently erase plaintext commits. Do not rely solely on `git rm --cached` before changing repository visibility.
 
 ### Step 3: Upgrade Polling Interval to 5 Minutes
 

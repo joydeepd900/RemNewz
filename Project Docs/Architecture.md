@@ -12,7 +12,7 @@ RemNewz is a serverless, dual-workflow architecture powered by GitHub Actions, c
 graph TD
     subgraph GitHub Actions Scheduled Environment
         DW[digest.yml<br/>8:00 AM UTC & On-Demand] -->|Fetch Repos & Feeds| FEAT[Fetchers: GitHub / RSS / HN]
-        FEAT -->|Filter Candidates & Apply Weights| SEEN[kv_store in remnewz.db.enc<br/>30d / 2000 Cap]
+        FEAT -->|Filter Candidates & Apply Weights via kv_store| SEEN[kv_store in remnewz.db.enc<br/>30d / 2000 Cap]
         FEAT -->|Synthesize Insights| AI[AI Engine: Pluggable Multi-Provider<br/>Gemini / OpenRouter / Groq]
         AI -->|Format HTML & Buttons| NEWZY[Persona: Newzy Digest]
         NEWZY -->|sendMessage| TG[Telegram Servers]
@@ -132,7 +132,7 @@ remnewz/
 - **Adaptive Feed Learning:**
   - Users can configure `digest_style`: `"concise"`, `"deep_dive"`, `"technical"`, or `"bullet_points"`.
   - News items carry `[ 👍 ]` and `[ 👎 ]` callback buttons.
-  - Tapping feedback records tag weights in `data/settings.enc` (`preferred_tags`, `suppressed_tags`).
+  - Tapping feedback records tag weights in the `kv_store` table of the unified `remnewz.db.enc` database (`preferred_tags`, `suppressed_tags`).
   - Future candidate ranking boosts preferred tags and filters out suppressed tags before sending to the AI synthesis step.
 
 ### 4.2 Supergroup Topic Routing & Thread Retention

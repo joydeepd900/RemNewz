@@ -37,6 +37,16 @@ def _format_repo(repo: dict, seen_urls: set) -> dict | None:
         "created_at": repo.get("created_at") or ""
     }
 
+def _collect_repos(raw_repos: list, seen_urls: set, all_items: list) -> int:
+    """Format and collect valid repos, returning the count of accepted items."""
+    count = 0
+    for repo in raw_repos:
+        formatted = _format_repo(repo, seen_urls)
+        if formatted:
+            all_items.append(formatted)
+            count += 1
+    return count
+
 def fetch_github_repos(config: dict) -> list:
     """Fetch recent trending GitHub repositories based on config topics and keywords."""
     github_token = os.environ.get("GITHUB_TOKEN")
@@ -63,18 +73,12 @@ def fetch_github_repos(config: dict) -> list:
     for q_base in queries:
         # Primary: created in last 7 days, stars > 500, ranked by recency
         query_primary = f"{q_base} created:>{created_after_7} stars:>500"
-        items = _search_repos(url, headers, query_primary, per_page=5)
+        accepted = _collect_repos(_search_repos(url, headers, query_primary, per_page=5), seen_urls, all_items)
         
         # Fallback: active in last 30 days, stars > 2000, ranked by recency
-        if len(items) < 3:
+        if accepted < 3:
             query_fallback = f"{q_base} pushed:>{pushed_after_30} stars:>2000"
-            fallback_items = _search_repos(url, headers, query_fallback, per_page=5)
-            items.extend(fallback_items)
-            
-        for repo in items:
-            formatted = _format_repo(repo, seen_urls)
-            if formatted:
-                all_items.append(formatted)
+            _collect_repos(_search_repos(url, headers, query_fallback, per_page=5), seen_urls, all_items)
 
     # Apply recency ranking before truncating candidates
     all_items.sort(key=lambda x: x.get("pushed_at") or x.get("created_at") or "", reverse=True)

@@ -76,7 +76,7 @@ graph TB
         STORE["Store (engine/store.py)<br/>Atomic Writes (.tmp -> replace)"]
         
         BRANCH_MAIN["Git Branch: 'main'<br/>100% Clean Code • Zero .enc Files<br/>Permanent .gitignore for data/"]
-        BRANCH_DATA["Git Branch: 'data' (Worktree Mounted to /data)<br/>• remnewz.db.enc (Unified Encrypted SQLite DB: tasks, kv_store)<br/>Auto-Provisioned on First Run • Monthly Squashed"]
+        BRANCH_DATA["Git Branch: 'data' (Worktree Mounted to /data)<br/>• remnewz.db.enc (Unified Encrypted SQLite DB: tasks, kv_store)<br/>• Plaintext Mode: remnewz.db (Restricted to Private Repos only)<br/>Auto-Provisioned on First Run • Monthly Squashed"]
         
         WF_MAINT -->|"Squashes to 1 commit"| BRANCH_DATA
         REMZY <--> STORE
@@ -313,7 +313,7 @@ flowchart TD
     subgraph CryptoLayer["engine/crypto.py (CryptoManager)"]
         CHK_KEY{ENCRYPTION_KEY<br/>Set & Valid?}
         CHK_KEY -- Invalid Format --> FAIL_SECURE[Raise RuntimeError<br/>Fail Securely & Halt]
-        CHK_KEY -- Missing / Empty --> PLAIN_MODE[Plaintext Mode<br/>Retain remnewz.db]
+        CHK_KEY -- Missing / Empty --> PLAIN_MODE["Plaintext Mode (Private Repos Only)<br/>Retains remnewz.db<br/>Publication check blocks unencrypted repos"]
         CHK_KEY -- Valid Fernet Key --> ENC_MODE[encrypt_bytes<br/>AES-128-CBC + HMAC-SHA256]
         
         CLOSE --> CHK_KEY
@@ -333,7 +333,7 @@ flowchart TD
     end
 
     subgraph DiskStorage["Repository Storage (Dedicated 'data' Branch via Worktree)"]
-        OS_REPLACE --> DATA_ENC["Target File: data/remnewz.db.enc<br/>(Single Unified Encrypted Database)"]
+        OS_REPLACE --> DATA_ENC["Target File: data/remnewz.db.enc (Encrypted)<br/>or data/remnewz.db (Plaintext in Private Repos Only)"]
         GITIGNORE[".gitignore Shielding<br/>• Blocks *.db, *.sqlite3, *.tmp, /data<br/>• Guarantees zero plaintext database leaks"]
     end
 ```

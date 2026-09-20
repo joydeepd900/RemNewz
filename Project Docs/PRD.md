@@ -41,7 +41,7 @@ RemNewz operates as a single Telegram bot presenting three specialized personas 
    - Allows users to customize settings directly within Telegram without editing code or committing files manually.
    - Commands: `/digest`, `/news`, `/todo`, `/list`, `/done`, `/remove`, `/history`, `/source`, `/config`, `/help`.
    - In-chat settings: `/config set_tz`, `/config set_style`, `/config set_limit`, `/config repo_mode`, `/config bind_news`, `/config bind_tasks`, `/config clear_topics`, `/source add`, `/source remove`, `/source list`.
-   - Persists dynamic overrides to git automatically in `data/settings.enc`.
+   - Persists dynamic overrides to git automatically in the `kv_store` table of `data/remnewz.db.enc`.
    - Signs off as *Helpzy*.
 
 ---
@@ -103,7 +103,7 @@ RemNewz operates as a single Telegram bot presenting three specialized personas 
 - **FR16 — Single-User Authorization:** Verify incoming message `chat.id == TELEGRAM_CHAT_ID` or sender in group. Silently ignore any updates from unauthorized users.
 - **FR17 — Secret Isolation:** Zero secrets, tokens, or credentials in source code or git history. All credentials injected via GitHub Actions Secrets.
 - **FR18 — Dual-Branch Storage & Unified SQLite Engine:**
-  - Standardizes the **Unified Encrypted SQLite Engine (`data/remnewz.db.enc`)** backed by Fernet encryption-at-rest (`ENCRYPTION_KEY`). Unifies tasks, settings, deduplication (30 days / 2,000 items), and update offsets into a single transactional database.
+  - Standardizes the **Unified Encrypted SQLite Engine (`data/remnewz.db.enc`)** backed by Fernet encryption-at-rest (`ENCRYPTION_KEY`). Unifies tasks, settings (stored in the `kv_store` table of the unified `remnewz.db.enc` database), deduplication (30 days / 2,000 items), and update offsets into a single transactional database.
   - **Zero-Leak Guarantee:** Plaintext `.db`, `.sqlite3`, and `.tmp` files are permanently ignored by `.gitignore`. The database is decrypted in-memory/ephemerally during workflow execution and atomically re-encrypted before termination.
   - **Dedicated Data Branch (`data`):** Code and state are strictly separated. The `main` branch contains application code only with zero `.enc` files and permanent `.gitignore` protection, ensuring personal user profiles and contribution graphs stay clean of automated bot commits. State files are mounted at `/data` at runtime via Git Worktrees and pushed exclusively to `origin data`.
   - **Zero-Setup Auto-Provisioning:** When a user creates a new repo from the template, workflows detect the missing `data` branch and auto-provision an orphan `data` storage branch on first run.
