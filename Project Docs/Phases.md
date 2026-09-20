@@ -41,15 +41,15 @@ This roadmap divides the build into modular, verifiable phases. Each phase concl
 **Goal:** Build the task storage engine and proactive notification logic before attaching live chat inputs.
 
 - **Tasks:**
-  - Define schema for `data/todos.json` (active tasks) and `data/archive_todos.json` (completed tasks, capped at **50 items**).
+  - Define initial schema for `data/todos.json` (active tasks) and `data/archive_todos.json` (completed tasks, capped at **50 items**; later unified into SQLite `tasks` table with **1,000-item** capacity).
   - Implement timezone-aware deadline evaluator in `personas/remzy.py`.
   - Implement anti-spam guardrails:
     - Exactly **one** due notification upon becoming due (`reminded_due = true`).
     - At most **one** overdue nudge every 24 hours (`now - last_overdue_nudge >= 24h`).
-  - Implement archive logic: moving completed tasks to `archive_todos.json` with `completed_at` timestamps.
+  - Implement archive logic: moving completed tasks to archive storage with `completed_at` timestamps.
   - Add unit tests (`tests/test_reminders.py`) validating timezone transitions, anti-spam suppression, and archive rotation.
 - **Verification Milestone:**
-  - Populate sample tasks in `todos.json`; execute checker; verify due notification arrives accurately without repeating on successive executions.
+  - Populate sample tasks; execute checker; verify due notification arrives accurately without repeating on successive executions.
 
 ---
 
@@ -81,7 +81,7 @@ This roadmap divides the build into modular, verifiable phases. Each phase concl
 
 - **Tasks:**
   - Implement `engine/crypto.py` with AES-256 (Fernet) encryption at rest.
-  - Set up `ENCRYPTION_KEY` in GitHub Secrets to enable symmetric Fernet encryption (AES-128-CBC) for all task storage.enc` and `archive_todos.enc` before git commit; decrypt in runner memory. Standardize across both public and private repos.
+  - Set up `ENCRYPTION_KEY` in GitHub Secrets to enable symmetric Fernet encryption (AES-128-CBC) for all task and state storage before git commit; decrypt in runner memory (later unified into `remnewz.db.enc`). Standardize across both public and private repos.
   - Validate that zero plaintext tasks appear in git history.
   - Polish `config.example.yml` with helpful commentary and cadence mode toggle (`public` vs `private`).
   - Write comprehensive, beginner-friendly `README.md` covering:
@@ -135,6 +135,17 @@ This roadmap divides the build into modular, verifiable phases. Each phase concl
   - Expanded RSS ingestion to top 10 articles per feed.
   - Added AI canonical topic slug normalization for clean GitHub topic queries.
   - Added dynamic command registration (`scripts/register_commands.py`) synchronizing commands across all 4 Telegram scopes.
+- **Phase 6.4 — Unified Encrypted SQLite Migration & Advanced Task Intelligence:**
+  - **Unified SQLite Backend Migration:**
+    - Transitioned persistence from legacy multi-file state (`todos.enc`, `archive_todos.enc`, `settings.enc`, `seen.enc`, `last_update_id.enc`) into a single, transactional, ACID-compliant encrypted SQLite database (`data/remnewz.db.enc`).
+    - Standardized clean relational schema: `tasks` table (`id`, `status`, `data` JSON, `completed_at`) and `kv_store` table (`key`, `value` JSON for settings, seen URLs dedup, and polling cursor).
+    - Built backward-compatible auto-migration from legacy `.enc` and `.json` files upon initial `init_db()` boot.
+    - Preserved zero-leak cryptographic lifecycle: in-memory/temp database decrypted on boot, committed and Fernet-encrypted via atomic temporary file replace (`_atomic_write_file`) on shutdown (`close_db()`).
+  - **Advanced Task Search & Analytics:**
+    - Implemented `/search <query>` with instant case-insensitive SQL matching across both active and archived task titles and tags with status badges and deadline indicators.
+    - Implemented `/stats` generating a comprehensive productivity metrics dashboard: total tracked tasks, active vs. completed count, completion rate percentage, overdue count, and priority distribution (`[P1]`, `[P2]`, `[P3]`).
+    - Expanded SQLite archive storage cap from 50 to **1,000 tasks** (`DB_ARCHIVE_LIMIT = 1000`).
+    - Added automated test suite `tests/test_search_and_stats.py` validating search filtering and statistics computation across clean and edge conditions.
 
 ---
 
@@ -145,5 +156,4 @@ This roadmap divides the build into modular, verifiable phases. Each phase concl
 - **Ideas:**
   - Additional ingestion sources: ArXiv AI papers, Reddit (`r/LocalLLaMA`, `r/MachineLearning`), Product Hunt.
   - Weekly executive review digest delivered on Sunday mornings summarizing major trends.
-  - SQLite backend migration if active task count exceeds hundreds of items.
   - User-level authorization for shared Supergroup moderation.

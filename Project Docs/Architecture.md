@@ -19,7 +19,7 @@ graph TD
 
         CW[commands.yml<br/>30-35m Private / 5m Public / Webhook] -->|getUpdates & Callbacks| TG
         TG -->|Poll Updates Queue| ROUTER[Command Router & Allowlist]
-        ROUTER -->|NLP /todo| REMZY[Persona: Remzy Tasks]
+        ROUTER -->|/todo, /search, /stats| REMZY[Persona: Remzy Tasks]
         ROUTER -->|Inline [📌 Remind]| REMZY
         ROUTER -->|Feedback [👍] [👎]| NEWZY_LEARN[Feed Preference Learning]
         ROUTER -->|/config & /source Settings| HELPZY[Persona: Helpzy Config]
@@ -83,14 +83,14 @@ remnewz/
 │   └── rss_hn.py                   # RSS feeds (top 10 items) + Hacker News API fetcher
 ├── personas/
 │   ├── newzy.py                    # Digest synthesis, adaptive styling & interactive buttons
-│   ├── remzy.py                    # NLP task parser, deadline evaluator & anti-spam nudger
+│   ├── remzy.py                    # NLP task parser, deadline evaluator, anti-spam nudger & search/stats
 │   └── helpzy.py                   # In-chat /config dispatcher & settings manager
 ├── notifier/
 │   └── telegram.py                 # Telegram Bot API wrapper (HTML parse mode & 4KB chunker)
 ├── scripts/
 │   ├── register_commands.py        # Pushes commands to Telegram across all 4 standard scopes
 │   └── cf_worker_proxy.js          # Cloudflare Worker webhook proxy script
-├── tests/                          # Automated pytest test suites
+├── tests/                          # Automated pytest test suites (fetchers, reminders, supergroups, search & stats)
 ├── Project Docs/
 │   ├── Architecture.md             # System architecture & component breakdown
 │   ├── PRD.md                      # Product requirements document
@@ -163,9 +163,16 @@ RemNewz decouples **Application Code** from **Encrypted State** through a dual-b
    - On the 1st of every month, an automated workflow squashes historical state commits on the `data` branch into a single clean snapshot commit (`chore(maintenance): monthly state consolidation [skip ci]`).
    - Keeps the repository lightweight and permanently prevents history bloat.
 5. **Unified Encrypted SQLite Engine (Fernet / AES-128-CBC with SHA256 HMAC):**
-   - Consolidates tasks, settings, deduplication history, and polling cursor into a single SQLite database (`remnewz.db.enc`).
-   - On boot, `init_db()` decrypts `remnewz.db.enc` to a temporary working database and auto-migrates any legacy `.enc`/`.json` files.
-   - On pipeline exit, `close_db()` commits transactions, encrypts the database binary via `engine/crypto.py`, and securely removes the plaintext `.db` file.
+   - Consolidates tasks, settings, deduplication history, and polling cursor into a single ACID SQLite database (`remnewz.db.enc`).
+   - **Relational Schema:**
+     - `tasks` table (`id TEXT PRIMARY KEY, status TEXT, data JSON, completed_at TEXT`): Stores active and archived tasks. Active tasks maintain priority (`P1`-`P3`), deadlines (`due_at`), tags, and origin supergroup topic routing. Completed tasks (`status = 'archived'`) record completion timestamps, with archive retention auto-pruned at **1,000 tasks** (`DB_ARCHIVE_LIMIT = 1000`).
+     - `kv_store` table (`key TEXT PRIMARY KEY, value JSON`): Fast key-value document store for dynamic user overrides (`settings`), candidate deduplication (`seen`, capped at 30 days or 2,000 items), and the Telegram update offset cursor (`last_update_id`).
+   - **Task Search & Analytical Engine:**
+     - Case-insensitive substring matching (`/search <query>`) queries the `tasks` table across both active and archived tasks with status badges and deadline indicators.
+     - Productivity analytics (`/stats`) aggregates metrics directly from SQLite: total tracked items, active count, completion rate percentage, overdue tasks, and priority distribution (`[P1]`, `[P2]`, `[P3]`).
+   - **Boot & Shutdown Lifecycle:**
+     - On boot, `init_db()` decrypts `remnewz.db.enc` to a temporary working database and auto-migrates any legacy `.enc`/`.json` files.
+     - On pipeline exit, `close_db()` commits transactions, encrypts the database binary via `engine/crypto.py`, and securely removes the plaintext `.db` file.
    - Plaintext `.db` and `.sqlite3` files are permanently ignored via `.gitignore` to guarantee zero data leaks.
 6. **Atomic Writes & Zero Corruption:**
    - Database binary encryption writes use `_atomic_write_file`: encrypted bytes are written to `.tmp` files, synced via `os.fsync`, and atomically replaced via `os.replace`.
@@ -235,17 +242,20 @@ sequenceDiagram
     User->>TG: /todo Review architecture PR by 6pm
     User->>TG: Tap [ 📌 Remind Me ] on Newzy item
     User->>TG: /done 3
+    User->>TG: /search architecture
+    User->>TG: /stats
     User->>TG: /config set_tz Asia/Kolkata
-    Note over TG: Telegram queues all 4 updates safely in cloud. Zero commits so far.
+    Note over TG: Telegram queues all updates safely in cloud. Zero commits so far.
 
     Note over Runner: At Minute 00:35 (Scheduled Trigger: 0,35 * * * *)
     Runner->>Git: Mount 'data' branch worktree at data/
     Runner->>TG: getUpdates?offset=last_id
-    TG->>Runner: Returns batch of 4 updates
+    TG->>Runner: Returns batch of updates
     
     Runner->>Runner: Remzy parses /todo (AI NLP)
     Runner->>Runner: Remzy processes [📌 Remind Me]
     Runner->>Runner: Remzy archives task 3
+    Runner->>Runner: Remzy executes /search and /stats queries
     Runner->>Runner: Helpzy updates timezone in settings
     Runner->>Runner: Remzy checks due/overdue deadlines
 

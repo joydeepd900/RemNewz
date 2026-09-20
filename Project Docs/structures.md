@@ -42,7 +42,7 @@ graph TB
 
         subgraph Personas["Persona Layer"]
             NEWZY["Newzy<br/>(News Scout & Synthesizer)"]
-            REMZY["Remzy<br/>(NLP Tasks & Anti-Spam Alerts)"]
+            REMZY["Remzy<br/>(NLP Tasks, Search & Analytics)"]
             HELPZY["Helpzy<br/>(Settings & Topic Routing)"]
             
             MAIN_CMD --> HELPZY
@@ -163,7 +163,7 @@ stateDiagram-v2
         AI_NLP_Parser --> ExtractMetadata: Parse title, due_at (UTC), priority, tags
         AI_NLP_Parser --> RegexFallback: On API Failure / Missing Key
         RegexFallback --> ExtractMetadata: Deterministic date parsing
-        ExtractMetadata --> AtomicSave: Store task in data/todos.enc
+        ExtractMetadata --> AtomicSave: Store task in tasks table of data/remnewz.db.enc
     }
 
     CommandReceived --> ActiveTasks: Task Active
@@ -195,12 +195,27 @@ stateDiagram-v2
     ActiveTasks --> Completed: User sends /done <id>
     
     state Completed {
-        [*] --> MoveToArchive: Remove from todos.enc
-        MoveToArchive --> CapArchive: Append to archive_todos.enc (Cap at 50)
+        [*] --> MoveToArchive: Update status = 'archived' in tasks table
+        MoveToArchive --> CapArchive: Auto-prune excess archived items (Cap at 1,000)
         CapArchive --> NotifyCompletion: Send "Task Completed & Archived"
     }
 
     Completed --> [*]
+
+    [*] --> SearchOrStats: User sends /search or /stats
+
+    state SearchOrStats {
+        [*] --> RouteQuery
+        RouteQuery --> ExecuteSearch: /search <query>
+        ExecuteSearch --> SQL_Like: Query tasks (active & archived) with SQL LIKE
+        SQL_Like --> FormatSearchResults: Add [ACTIVE]/[DONE] badges & deadlines
+
+        RouteQuery --> ExecuteStats: /stats
+        ExecuteStats --> SQL_Aggregate: Aggregate total, active, completed, overdue, priorities
+        SQL_Aggregate --> FormatDashboard: Compute completion % & render metrics
+    }
+
+    SearchOrStats --> [*]
 ```
 
 ---
@@ -278,6 +293,8 @@ flowchart TD
     SCOPE_REMZY -- "/done" --> R_DONE[Archive Task in tasks table of remnewz.db.enc]
     SCOPE_REMZY -- "/remove" --> R_REMOVE[Delete Task Permanently]
     SCOPE_REMZY -- "/history" --> R_HIST[Display Last 10 Archived Tasks]
+    SCOPE_REMZY -- "/search" --> R_SEARCH[Search Active & Archived Tasks via SQL LIKE]
+    SCOPE_REMZY -- "/stats" --> R_STATS[Generate Productivity & Completion Dashboard]
 
     SCOPE_REMZY -- Unmatched --> UNKNOWN([Ignore Unknown Command])
 
@@ -300,8 +317,8 @@ This diagram details the atomic file-write pattern and Fernet symmetric encrypti
 flowchart TD
     subgraph DatabaseLayer["SQLite Runtime Layer (engine/store.py)"]
         SQLITE_DB[("Local SQLite Database<br/>data/remnewz.db")]
-        TASKS_TBL["Table: tasks<br/>(id, status, data, completed_at)"]
-        KV_TBL["Table: kv_store<br/>(key, value JSON: settings, seen, cursor)"]
+        TASKS_TBL["Table: tasks<br/>(id, status, data JSON, completed_at)<br/>Archive auto-pruned at 1,000 items"]
+        KV_TBL["Table: kv_store<br/>(key, value JSON)<br/>Settings, Seen URLs (2,000 cap), Cursor"]
         
         TASKS_TBL --- SQLITE_DB
         KV_TBL --- SQLITE_DB
