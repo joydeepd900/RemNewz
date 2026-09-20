@@ -205,6 +205,74 @@ Recently Completed (Last 10)
 
 ---
 
+### Search Tasks (`/search`)
+
+Searches across all your active and archived tasks for a keyword, phrase, or task ID.
+
+**Syntax:**
+
+```text
+/search <query>
+```
+
+**Example:**
+
+```text
+/search meeting
+```
+
+**Output:**
+
+```text
+🔍 Search Results for "meeting"
+
+📋 Active Tasks
+• Prepare meeting notes
+  └ 📅 Today, 2:00 PM • 🆔 a1b2c3d4 (/done a1b2c3d4)
+
+📜 Completed Tasks
+• Weekly sync meeting
+  └ ✅ Sep 14, 10:00 AM • 🆔 e5f6g7h8
+```
+
+---
+
+### Productivity Analytics (`/stats`)
+
+View a comprehensive dashboard of your task completion rates, weekly velocity, and deadline compliance.
+
+**Syntax:**
+
+```text
+/stats
+```
+
+**Output:**
+
+```text
+📊 Remzy Productivity Analytics
+Your task health, velocity & completion metrics
+
+📈 Velocity & Output
+• This Week (7d): 12 tasks completed
+• This Month (30d): 45 tasks completed
+• Weekly Pace: ~1.7 tasks/day
+
+🎯 Completion & Compliance
+• Active Backlog: 8 pending
+• Total Completed: 120 tasks
+• All-Time Progress: [🟩🟩🟩🟩🟩🟩🟩⬜⬜⬜] 71.4%
+• Deadline Compliance: 85.0% on-time
+
+⏰ Deadline Health
+• ✅ Overdue Now: 0
+• ⏳ Due in 24h: 2
+• 📅 Upcoming (Later): 4
+• ⚪ No Deadline: 2
+```
+
+---
+
 ### Interactive Button: Remind Me
 
 Every news item delivered by Newzy includes an inline `[ 📌 Remind Me ]` button.

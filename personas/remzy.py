@@ -34,7 +34,8 @@ class Remzy:
                 "priority": task_data.get("priority", "normal"),
                 "reminded_due": False,
                 "origin_thread_id": message_thread_id,
-                "origin_chat_id": chat_id
+                "origin_chat_id": chat_id,
+                "created_at": datetime.now(timezone.utc).isoformat()
             }
             self.store.add_task(task)
             
@@ -77,14 +78,10 @@ class Remzy:
                 return True
                 
             task_id = args.split()[0]
-            # Just delete it without archiving
-            for i, t in enumerate(self.store.todos):
-                if t.get("id") == task_id:
-                    self.store.todos.pop(i)
-                    self.store.save()
-                    send_message(f"🗑️ Task <code>{task_id}</code> deleted permanently.", chat_id=chat_id, message_thread_id=message_thread_id)
-                    return True
-            send_message(f"❌ Task <code>{task_id}</code> not found.", chat_id=chat_id, message_thread_id=message_thread_id)
+            if self.store.delete_task(task_id):
+                send_message(f"🗑️ Task <code>{task_id}</code> deleted permanently.", chat_id=chat_id, message_thread_id=message_thread_id)
+            else:
+                send_message(f"❌ Task <code>{task_id}</code> not found.", chat_id=chat_id, message_thread_id=message_thread_id)
             return True
             
         if cmd == "/history":
@@ -100,6 +97,92 @@ class Remzy:
             send_message(msg, chat_id=chat_id, message_thread_id=message_thread_id)
             return True
             
+        if cmd == "/search":
+            if not args:
+                msg = (
+                    "🔍 <b>Task Search</b>\n\n"
+                    "Usage: <code>/search &lt;query&gt;</code>\n"
+                    "Example: <code>/search meeting</code> or <code>/search abc1234</code>\n\n"
+                    "<i>Searches across all active and completed tasks.</i>"
+                )
+                send_message(msg, chat_id=chat_id, message_thread_id=message_thread_id)
+                return True
+                
+            results = self.store.search_tasks(args, limit=15)
+            if not results:
+                safe_query = html.escape(args)
+                msg = f"🔍 <b>Task Search</b>\n\nNo tasks found matching \"<b>{safe_query}</b>\".\n\n💡 <i>Try searching with a partial keyword or use <code>/list</code>.</i>"
+                send_message(msg, chat_id=chat_id, message_thread_id=message_thread_id)
+                return True
+                
+            active_matches = [t for t in results if t.get("status") == "active"]
+            archived_matches = [t for t in results if t.get("status") == "archived"]
+            
+            safe_query = html.escape(args)
+            msg = f"🔍 <b>Search Results for \"<i>{safe_query}</i>\"</b>\n\n"
+            
+            if active_matches:
+                msg += "📋 <b>Active Tasks</b>\n"
+                for t in active_matches:
+                    formatted_due = format_datetime(datetime.fromisoformat(t["due_at"]), style="short") if t.get("due_at") else "No deadline"
+                    safe_title = html.escape(t['title'])
+                    msg += f"• <b>{safe_title}</b>\n  └ 📅 <i>{formatted_due}</i> • 🆔 <code>{t['id']}</code> (<code>/done {t['id']}</code>)\n"
+                msg += "\n"
+                
+            if archived_matches:
+                msg += "📜 <b>Completed Tasks</b>\n"
+                for t in archived_matches:
+                    completed = format_datetime(datetime.fromisoformat(t["completed_at"]), style="short") if t.get("completed_at") else "Unknown"
+                    safe_title = html.escape(t['title'])
+                    msg += f"• <s>{safe_title}</s>\n  └ ✅ <i>{completed}</i> • 🆔 <code>{t['id']}</code>\n"
+                    
+            if len(results) == 15:
+                msg += "\n<i>...and possibly more results. Narrow your search query to see them.</i>"
+                
+            send_message(msg, chat_id=chat_id, message_thread_id=message_thread_id)
+            return True
+            
+        if cmd == "/stats":
+            stats = self.store.get_stats()
+            if stats["total_tasks"] == 0:
+                msg = (
+                    "📊 <b>Remzy Productivity Analytics</b>\n\n"
+                    "📭 No tasks recorded yet!\n"
+                    "Start adding tasks with <code>/todo &lt;description&gt;</code> to unlock productivity analytics."
+                )
+                send_message(msg, chat_id=chat_id, message_thread_id=message_thread_id)
+                return True
+                
+            pct = stats["completion_rate_pct"]
+            filled = min(10, max(0, round(pct / 10)))
+            progress_bar = "🟩" * filled + "⬜" * (10 - filled)
+            
+            comp_rate_str = f"{stats['deadline_compliance']['rate_pct']}% on-time" if stats['deadline_compliance']['rate_pct'] is not None else "<i>No deadlines set</i>"
+            overdue_icon = "⚠️" if stats["overdue_count"] > 0 else "✅"
+            overdue_hint = " <i>(Use /list to tackle them)</i>" if stats["overdue_count"] > 0 else ""
+            
+            msg = (
+                "📊 <b>Remzy Productivity Analytics</b>\n"
+                "<i>Your task health, velocity & completion metrics</i>\n\n"
+                "📈 <b>Velocity & Output</b>\n"
+                f"• <b>This Week (7d):</b> <b>{stats['completed_7d']}</b> tasks completed\n"
+                f"• <b>This Month (30d):</b> <b>{stats['completed_30d']}</b> tasks completed\n"
+                f"• <b>Weekly Pace:</b> ~{stats['daily_velocity']:.1f} tasks/day\n\n"
+                "🎯 <b>Completion & Compliance</b>\n"
+                f"• <b>Active Backlog:</b> {stats['active_count']} pending\n"
+                f"• <b>Total Completed:</b> {stats['archived_count']} tasks\n"
+                f"• <b>All-Time Progress:</b> [{progress_bar}] {pct}%\n"
+                f"• <b>Deadline Compliance:</b> {comp_rate_str}\n\n"
+                "⏰ <b>Deadline Health</b>\n"
+                f"• {overdue_icon} <b>Overdue Now:</b> {stats['overdue_count']}{overdue_hint}\n"
+                f"• ⏳ <b>Due in 24h:</b> {stats['due_today_count']}\n"
+                f"• 📅 <b>Upcoming (Later):</b> {stats['upcoming_count']}\n"
+                f"• ⚪ <b>No Deadline:</b> {stats['no_deadline_count']}\n"
+            )
+            
+            send_message(msg, chat_id=chat_id, message_thread_id=message_thread_id)
+            return True
+
         return False
 
     def handle_remind_me(self, callback_data: str, message_thread_id: int = None, chat_id: str = None):
@@ -111,7 +194,8 @@ class Remzy:
             "priority": "normal",
             "reminded_due": False,
             "origin_thread_id": message_thread_id,
-            "origin_chat_id": chat_id
+            "origin_chat_id": chat_id,
+            "created_at": datetime.now(timezone.utc).isoformat()
         }
         self.store.add_task(task)
         send_message(f"📌 Task Created: <b>Review News Item</b>\n📅 Due: Tomorrow\n🆔 <code>{task['id']}</code>", chat_id=chat_id, message_thread_id=message_thread_id)

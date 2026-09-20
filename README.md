@@ -77,6 +77,8 @@ RemNewz features three built-in personas: **Newzy** (News), **Remzy** (Tasks), a
 - `/done <id>` - Mark a task complete and archive it.
 - `/remove <id>` - Permanently delete a task.
 - `/history` - View recently completed tasks.
+- `/search <query>` - Search active and archived tasks.
+- `/stats` - View productivity analytics and completion rates.
 - `/source` - View, add (`/source add <url> [label]`), or remove news/RSS feed sources.
 - `/config` - View and manage dynamic settings (timezone, style, topics, news limits, forum routing).
 - `/help` - Display command summary and operational help.

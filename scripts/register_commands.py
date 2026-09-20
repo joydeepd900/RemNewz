@@ -28,6 +28,8 @@ COMMANDS = [
     {"command": "done", "description": "Mark task completed (e.g. /done abc1234)"},
     {"command": "remove", "description": "Delete task permanently"},
     {"command": "history", "description": "View recently completed tasks"},
+    {"command": "search", "description": "Search active & completed tasks"},
+    {"command": "stats", "description": "Task velocity & completion analytics"},
     {"command": "source", "description": "Manage news sources & RSS feeds"},
     {"command": "config", "description": "Settings, timezones & topic binding"},
     {"command": "help", "description": "Show command reference & help"}

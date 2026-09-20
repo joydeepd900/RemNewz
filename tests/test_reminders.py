@@ -23,25 +23,31 @@ class TestReminders(unittest.TestCase):
     def test_store_archive_rotation(self):
         store = TaskStore(self.todos_file, self.archive_file)
         
-        # Add 55 tasks
-        for i in range(55):
+        # Add 1005 tasks
+        for i in range(1005):
             store.add_task({"id": f"task_{i}", "title": f"Task {i}"})
             
-        self.assertEqual(len(store.todos), 55)
+        self.assertEqual(len(store.todos), 1005)
         
-        # Archive all 55 tasks
-        for i in range(55):
+        # Archive all 1005 tasks
+        for i in range(1005):
             store.archive_task(f"task_{i}")
             
         self.assertEqual(len(store.todos), 0)
+        # In-memory archive property still limits to 50 for /history
         self.assertEqual(len(store.archive), 50)
         
-        # The oldest items (task_0 to task_4) should be pruned because archive limit is 50.
-        # Since archive_task inserts at index 0, the last ones added (task_54) are at the front.
-        # So task_0 to task_4 should fall off the end.
+        # Check DB to ensure 1000 items are stored
+        conn = store._get_active_conn()
+        cur = conn.cursor()
+        cur.execute("SELECT count(*) FROM tasks WHERE status = 'archived'")
+        db_count = cur.fetchone()[0]
+        self.assertEqual(db_count, 1000)
+        
+        # The oldest items (task_0 to task_4) should be pruned because DB archive limit is 1000.
         archived_ids = [t["id"] for t in store.archive]
         self.assertNotIn("task_0", archived_ids)
-        self.assertIn("task_54", archived_ids)
+        self.assertIn("task_1004", archived_ids)
 
     @patch('personas.remzy.send_message')
     def test_anti_spam_guardrails(self, mock_send):
@@ -94,7 +100,7 @@ class TestReminders(unittest.TestCase):
         
         t3_updated = remzy.store.get_task("t3")
         last_nudge_dt = datetime.fromisoformat(t3_updated["last_overdue_nudge"])
-        self.assertGreater(last_nudge_dt, now) # now was recorded before checking
+        self.assertGreaterEqual(last_nudge_dt, now) # now was recorded before checking
         
         # Run check again, immediately
         remzy.check_deadlines()

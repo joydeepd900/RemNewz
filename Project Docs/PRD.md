@@ -39,7 +39,7 @@ RemNewz operates as a single Telegram bot presenting three specialized personas 
 
 3. ⚙️ **Helpzy (The In-Chat Configuration Specialist):**
    - Allows users to customize settings directly within Telegram without editing code or committing files manually.
-   - Commands: `/digest`, `/news`, `/todo`, `/list`, `/done`, `/remove`, `/history`, `/source`, `/config`, `/help`.
+   - Commands: `/digest`, `/news`, `/todo`, `/list`, `/done`, `/remove`, `/history`, `/search`, `/stats`, `/source`, `/config`, `/help`.
    - In-chat settings: `/config set_tz`, `/config set_style`, `/config set_limit`, `/config repo_mode`, `/config bind_news`, `/config bind_tasks`, `/config clear_topics`, `/source add`, `/source remove`, `/source list`.
    - Persists dynamic overrides to git automatically in the `kv_store` table of `data/remnewz.db.enc`.
    - Signs off as *Helpzy*.
@@ -90,6 +90,7 @@ RemNewz operates as a single Telegram bot presenting three specialized personas 
   - Alert once when a task reaches its due window.
   - Send at most one overdue nudge every 24 hours to prevent spamming.
 - **FR12 — Completed History:** Allow users to view recently finished tasks via `/history`.
+- **FR24 — Advanced Task Search & Analytics:** Support instant keyword search via `/search <query>` across all active and archived tasks. Provide productivity analytics, completion rates, and deadline compliance metrics via `/stats`.
 
 ### 4.3 In-Chat Configuration & Operations (Helpzy)
 

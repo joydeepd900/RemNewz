@@ -2,7 +2,7 @@ import os
 import json
 import atexit
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from engine.crypto import CryptoManager, DecryptionError
 
 DATA_DIR = "data"
@@ -13,6 +13,7 @@ ARCHIVE_FILE = os.path.join(DATA_DIR, "archive_todos.json")
 TODOS_FILE_ENC = os.path.join(DATA_DIR, "todos.enc")
 ARCHIVE_FILE_ENC = os.path.join(DATA_DIR, "archive_todos.enc")
 MAX_ARCHIVE_ITEMS = 50
+DB_ARCHIVE_LIMIT = 1000
 
 # Global Connection
 _conn = None
@@ -329,11 +330,193 @@ class TaskStore:
                     DELETE FROM tasks 
                     WHERE status = 'archived' 
                     AND rowid NOT IN (
-                        SELECT rowid FROM tasks WHERE status = 'archived' ORDER BY completed_at DESC, rowid DESC LIMIT {MAX_ARCHIVE_ITEMS}
+                        SELECT rowid FROM tasks WHERE status = 'archived' ORDER BY completed_at DESC, rowid DESC LIMIT {DB_ARCHIVE_LIMIT}
                     )
                 """)
             return True
         return False
+
+    def delete_task(self, task_id: str) -> bool:
+        """Permanently delete a task by ID from both memory and SQLite."""
+        if self._todos is None:
+            self._load_todos()
+        if self._archive is None:
+            self._load_archive()
+            
+        found = False
+        for i, t in enumerate(self._todos):
+            if t.get("id") == task_id:
+                self._todos.pop(i)
+                found = True
+                break
+                
+        if not found:
+            for i, t in enumerate(self._archive):
+                if t.get("id") == task_id:
+                    self._archive.pop(i)
+                    found = True
+                    break
+                    
+        conn = self._get_active_conn()
+        with conn:
+            cur = conn.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+            if cur.rowcount > 0:
+                found = True
+                
+        return found
+
+    def search_tasks(self, query: str, status: str = None, limit: int = 15) -> list[dict]:
+        """Search tasks using SQLite LIKE across titles and IDs."""
+        conn = self._get_active_conn()
+        cur = conn.cursor()
+        
+        # Case-insensitive substring match
+        pattern = f"%{query.strip().lower()}%"
+        
+        sql = """
+            SELECT status, data, completed_at 
+            FROM tasks 
+            WHERE (LOWER(json_extract(data, '$.title')) LIKE ? OR LOWER(id) LIKE ?)
+        """
+        params = [pattern, pattern]
+        
+        if status:
+            sql += " AND status = ?"
+            params.append(status)
+            
+        sql += """
+            ORDER BY 
+                CASE WHEN status = 'active' THEN 0 ELSE 1 END,
+                completed_at DESC,
+                rowid DESC
+            LIMIT ?
+        """
+        params.append(limit)
+        
+        cur.execute(sql, params)
+        results = []
+        for row in cur.fetchall():
+            task = json.loads(row["data"])
+            task["status"] = row["status"]
+            if row["completed_at"]:
+                task["completed_at"] = row["completed_at"]
+            results.append(task)
+            
+        return results
+
+    def get_stats(self, now_utc: datetime = None) -> dict:
+        """Compute productivity and completion statistics directly from the database."""
+        if now_utc is None:
+            now_utc = datetime.now(timezone.utc)
+            
+        conn = self._get_active_conn()
+        cur = conn.cursor()
+        
+        # 1. Fetch active tasks for backlog and deadline health
+        cur.execute("SELECT data FROM tasks WHERE status = 'active'")
+        active_rows = cur.fetchall()
+        
+        active_count = len(active_rows)
+        overdue_count = 0
+        due_today_count = 0
+        upcoming_count = 0
+        no_deadline_count = 0
+        
+        priorities = {"high": 0, "normal": 0, "low": 0}
+        
+        for row in active_rows:
+            task = json.loads(row["data"])
+            pri = task.get("priority", "normal").lower()
+            if pri in priorities:
+                priorities[pri] += 1
+            else:
+                priorities["normal"] += 1
+                
+            due_at_str = task.get("due_at")
+            if not due_at_str:
+                no_deadline_count += 1
+                continue
+                
+            try:
+                due_at = datetime.fromisoformat(due_at_str)
+                if due_at.tzinfo is None:
+                    due_at = due_at.replace(tzinfo=timezone.utc)
+                    
+                if due_at < now_utc:
+                    overdue_count += 1
+                elif due_at <= now_utc + timedelta(hours=24):
+                    due_today_count += 1
+                else:
+                    upcoming_count += 1
+            except (ValueError, TypeError):
+                no_deadline_count += 1
+
+        # 2. Fetch all archived tasks for lifetime and velocity metrics
+        cur.execute("SELECT data, completed_at FROM tasks WHERE status = 'archived'")
+        archived_rows = cur.fetchall()
+        
+        archived_count = len(archived_rows)
+        completed_7d = 0
+        completed_30d = 0
+        
+        with_deadline = 0
+        on_time = 0
+        late = 0
+        
+        for row in archived_rows:
+            task = json.loads(row["data"])
+            comp_str = row["completed_at"]
+            if not comp_str:
+                continue
+                
+            try:
+                comp_at = datetime.fromisoformat(comp_str)
+                if comp_at.tzinfo is None:
+                    comp_at = comp_at.replace(tzinfo=timezone.utc)
+                    
+                days_ago = (now_utc - comp_at).days
+                if days_ago <= 7:
+                    completed_7d += 1
+                if days_ago <= 30:
+                    completed_30d += 1
+                    
+                due_at_str = task.get("due_at")
+                if due_at_str:
+                    due_at = datetime.fromisoformat(due_at_str)
+                    if due_at.tzinfo is None:
+                        due_at = due_at.replace(tzinfo=timezone.utc)
+                    with_deadline += 1
+                    if comp_at <= due_at:
+                        on_time += 1
+                    else:
+                        late += 1
+                        
+            except (ValueError, TypeError):
+                continue
+
+        total_tasks = active_count + archived_count
+        completion_rate = (archived_count / total_tasks * 100) if total_tasks > 0 else 0.0
+        
+        return {
+            "total_tasks": total_tasks,
+            "active_count": active_count,
+            "archived_count": archived_count,
+            "completion_rate_pct": round(completion_rate, 1),
+            "overdue_count": overdue_count,
+            "due_today_count": due_today_count,
+            "upcoming_count": upcoming_count,
+            "no_deadline_count": no_deadline_count,
+            "completed_7d": completed_7d,
+            "completed_30d": completed_30d,
+            "daily_velocity": round(completed_7d / 7.0, 1),
+            "deadline_compliance": {
+                "with_deadline": with_deadline,
+                "on_time": on_time,
+                "late": late,
+                "rate_pct": round((on_time / with_deadline * 100), 1) if with_deadline > 0 else None
+            },
+            "priorities": priorities
+        }
 
     def save(self):
         if getattr(self, "load_failed", False):
