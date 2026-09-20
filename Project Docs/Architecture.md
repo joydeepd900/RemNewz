@@ -49,7 +49,7 @@ graph TD
     TG <===> USER((User on Phone))
 ```
 
-> **Detailed Architecture Diagrams:** For comprehensive Mermaid sequence diagrams, state machines, and system flowcharts, see [structures.md](./structures.md).
+> **Detailed Architecture Diagrams:** For comprehensive Mermaid sequence diagrams, state machines, and system flowcharts, see [structures.md](../docs/structures.md).
 
 ---
 
@@ -71,7 +71,8 @@ remnewz/
 ├── docs/
 │   ├── user_guide.md               # User guide & command reference
 │   ├── repo_modes_guide.md         # Public vs Private repository guide
-│   └── cloudflare_worker_guide.md  # Zero-polling webhook proxy setup guide
+│   ├── cloudflare_worker_guide.md  # Zero-polling webhook proxy setup guide
+│   └── structures.md               # Centralized Mermaid architecture diagrams
 ├── engine/
 │   ├── ai_client.py                # Multi-provider client (Gemini, OpenRouter, Groq with dynamic models)
 │   ├── crypto.py                   # Fail-secure Fernet AES-128-CBC encryption at rest
@@ -96,7 +97,7 @@ remnewz/
 │   ├── PRD.md                      # Product requirements document
 │   ├── Rules.md                    # Technical boundaries & conventions
 │   ├── Phases.md                   # Build roadmap & verification checkpoints
-│   └── structures.md               # Centralized Mermaid architecture diagrams
+│   └── memory.md                   # Working context & development memory
 ├── main_digest.py                  # Entrypoint for digest.yml and on-demand /digest /news
 ├── main_commands.py                # Entrypoint for commands.yml
 ├── requirements.txt                # Lightweight dependencies

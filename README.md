@@ -85,7 +85,7 @@ RemNewz features three built-in personas: **Newzy** (News), **Remzy** (Tasks), a
 
 For a full reference of commands, natural language examples, and Supergroup topic routing instructions, see the [RemNewz User Guide](docs/user_guide.md).
 
-For visual system architecture, sequence diagrams, and flowcharts, see [System Structures & Diagrams](Project%20Docs/structures.md).
+For visual system architecture, sequence diagrams, and flowcharts, see [System Structures & Diagrams](docs/structures.md).
 
 ## Advanced Configuration: Private Repositories & Webhooks
 
