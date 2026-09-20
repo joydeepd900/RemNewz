@@ -3,7 +3,7 @@
 **Product:** RemNewz  
 **Status:** Phase 5 Complete (Supergroup Topic Routing & Webhook Dispatch Implemented)  
 **Distribution Model:** Open-Source GitHub Template Repository (Self-Hostable at $0 Cost)  
-**Related Docs:** [Architecture.md](./Architecture.md) · [Rules.md](./Rules.md) · [Phases.md](./Phases.md)
+**Related Docs:** [Architecture](./architecture.md) · [Contributing Guidelines](../CONTRIBUTING.md) · [Roadmap (Phases)](./roadmap.md)
 
 ---
 

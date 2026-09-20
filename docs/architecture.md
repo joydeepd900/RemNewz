@@ -1,6 +1,6 @@
 # Architecture — RemNewz: AI Assistant Suite & Open-Source Template
 
-**Related Docs:** [PRD.md](./PRD.md) · [Rules.md](./Rules.md) · [Phases.md](./Phases.md)
+**Related Docs:** [PRD](./prd.md) · [Contributing Guidelines](../CONTRIBUTING.md) · [Roadmap (Phases)](./roadmap.md)
 
 ---
 
@@ -68,11 +68,15 @@ remnewz/
 │   └── __init__.py                 # On 'main': only __init__.py exists (zero personal .enc files)
 │                                   # On 'data' branch:
 │                                   # └── remnewz.db.enc (Unified Encrypted SQLite DB: tasks, settings, seen, last_update_id)
+├── CONTRIBUTING.md                 # Technical boundaries, rules, & conventions
 ├── docs/
-│   ├── user_guide.md               # User guide & command reference
-│   ├── repo_modes_guide.md         # Public vs Private repository guide
+│   ├── architecture.md             # System architecture & component breakdown
 │   ├── cloudflare_worker_guide.md  # Zero-polling webhook proxy setup guide
-│   └── structures.md               # Centralized Mermaid architecture diagrams
+│   ├── prd.md                      # Product requirements document
+│   ├── repo_modes_guide.md         # Public vs Private repository guide
+│   ├── roadmap.md                  # Build roadmap & verification checkpoints (Phases)
+│   ├── structures.md               # Centralized Mermaid architecture diagrams
+│   └── user_guide.md               # User guide & command reference
 ├── engine/
 │   ├── ai_client.py                # Multi-provider client (Gemini, OpenRouter, Groq with dynamic models)
 │   ├── crypto.py                   # Fail-secure Fernet AES-128-CBC encryption at rest
@@ -92,12 +96,6 @@ remnewz/
 │   ├── register_commands.py        # Pushes commands to Telegram across all 4 standard scopes
 │   └── cf_worker_proxy.js          # Cloudflare Worker webhook proxy script
 ├── tests/                          # Automated pytest test suites (fetchers, reminders, supergroups, search & stats)
-├── Project Docs/
-│   ├── Architecture.md             # System architecture & component breakdown
-│   ├── PRD.md                      # Product requirements document
-│   ├── Rules.md                    # Technical boundaries & conventions
-│   ├── Phases.md                   # Build roadmap & verification checkpoints
-│   └── memory.md                   # Working context & development memory
 ├── main_digest.py                  # Entrypoint for digest.yml and on-demand /digest /news
 ├── main_commands.py                # Entrypoint for commands.yml
 ├── requirements.txt                # Lightweight dependencies
