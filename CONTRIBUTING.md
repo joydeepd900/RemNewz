@@ -10,23 +10,23 @@ Read this before writing code or making architectural adjustments. These rules a
 - **Zero Secrets in Git:** Never hardcode `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `AI_API_KEY`, or `ENCRYPTION_KEY`. All credentials must be read exclusively from environment variables injected via GitHub Actions Secrets.
 - **Log Hygiene:** Never log API keys, bearer tokens, or raw Telegram payloads containing secrets in standard output or error logs.
 - **Strict Allowlist:** Always verify `update.message.chat.id == TELEGRAM_CHAT_ID` or `update.callback_query.message.chat.id == TELEGRAM_CHAT_ID` before processing any command. Silently drop updates from any other user or chat.
-- **Template Sanitization:** `config.example.yml` must only contain generic, non-identifying sample topics, feeds, and styles. Personal configurations must remain in `data/settings.json` or private `.gitignore` files.
+- **Template Sanitization:** `config.example.yml` must only contain generic, non-identifying sample topics, feeds, and styles. Personal configurations must remain in the encrypted SQLite `kv_store` in `data/remnewz.db.enc` or private `.gitignore` files.
 - **Universal Encryption:** Standardize Fernet encryption (`.enc`, AES-128-CBC with SHA256 HMAC) across both public and private repositories when `ENCRYPTION_KEY` is provided. Plaintext personal tasks must never be committed to git unless the user explicitly leaves encryption disabled.
 
 ---
 
 ## 2. Workflow Safety & Batching Mechanics
-- **Trigger Restrictions:** Both workflows must trigger only via `schedule:` crons and `workflow_dispatch:`. Never add a `push:` trigger to workflows, which would create an infinite commit $\to$ trigger loop.
+- **Trigger Restrictions:** Workflows must trigger only via `schedule:` crons, `workflow_dispatch:`, or `repository_dispatch:` for `telegram-webhook` events. Never add a `push:` trigger to workflows, which would create an infinite commit $\to$ trigger loop.
 - **Batched Commits:** In `commands.yml`, all commands and callback actions processed during the batch window (35-min private / 3–5 min public) must be consolidated into **at most one single git commit**. Never commit per-command.
 - **Push Concurrency:** Every workflow committing back to the repository must belong to the `concurrency: git-state-storage` group with `cancel-in-progress: false`.
-- **Rebase Before Push:** Always execute `git pull --rebase origin main` before `git push`. If there is nothing to commit (`git diff --quiet`), skip the commit entirely to avoid empty log pollution.
+- **Rebase Before Push:** Always execute `git pull --rebase origin data` before `git push origin data` when committing state to the database branch. If there is nothing to commit (`git diff --quiet`), skip the commit entirely to avoid empty log pollution.
 - **Idempotency:** Every workflow run must be idempotent. Re-running a workflow with identical input must never produce duplicate Telegram messages or duplicate tasks.
 
 ---
 
 ## 3. Timezone & Scheduling Integrity
 - **No Naive Datetimes:** GitHub Actions runners always operate in `UTC`. Never execute unlocalized `datetime.now()` for user-facing calculations.
-- **Timezone Normalization:** All user-entered dates (e.g. "tomorrow 5pm", "Friday at 3") and deadline comparisons must be localized to the user's configured IANA timezone (from `config.example.yml` or `data/settings.json`).
+- **Timezone Normalization:** All user-entered dates (e.g. "tomorrow 5pm", "Friday at 3") and deadline comparisons must be localized to the user's configured IANA timezone (from `config.example.yml` or the `kv_store` settings).
 - **Cron Jitter Resilience:** Crons may be delayed by GitHub infrastructure. The due checker must check `due_at <= now` (not `due_at == now`) to ensure delayed runs still trigger pending notifications.
 
 ---

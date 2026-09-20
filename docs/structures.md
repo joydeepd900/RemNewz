@@ -266,7 +266,7 @@ This diagram models how incoming messages, forum supergroup threads, and Telegra
 
 ```mermaid
 flowchart TD
-    START([Incoming Telegram Update]) --> AUTH{Chat ID or From ID<br/>== TELEGRAM_CHAT_ID?}
+    START([Incoming Telegram Update]) --> AUTH{update.message.chat.id<br/>== TELEGRAM_CHAT_ID?}
     AUTH -- No --> DROP([Silently Drop Update])
     AUTH -- Yes --> MSG_TYPE{Update Type?}
 
@@ -392,7 +392,7 @@ sequenceDiagram
     opt Commit count > 1
         Maint->>Maint: git checkout --orphan temp-data
         Maint->>Maint: git commit -m "chore(maintenance): monthly state consolidation"
-        Maint->>Data: git push --force origin data
+        Maint->>Data: git push --force origin temp-data:data
         Note over Data: Consolidated hundreds of sync commits<br/>into 1 single clean snapshot commit!
     end
 ```

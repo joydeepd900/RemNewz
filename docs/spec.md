@@ -1,7 +1,7 @@
 # Product Specification (PRD) — RemNewz: Personal AI Intelligence & Reminders Suite
 
 **Product:** RemNewz  
-**Status:** Phase 5 Complete (Supergroup Topic Routing & Webhook Dispatch Implemented)  
+**Status:** Phase 6 Complete (Unified Encrypted SQLite Migration & Advanced Task Intelligence)  
 **Distribution Model:** Open-Source GitHub Template Repository (Self-Hostable at $0 Cost)  
 **Related Docs:** [Architecture](./architecture.md) · [Contributing Guidelines](../CONTRIBUTING.md) · [Roadmap (Phases)](./roadmap.md)
 
@@ -109,7 +109,7 @@ RemNewz operates as a single Telegram bot presenting three specialized personas 
   - **Dedicated Data Branch (`data`):** Code and state are strictly separated. The `main` branch contains application code only with zero `.enc` files and permanent `.gitignore` protection, ensuring personal user profiles and contribution graphs stay clean of automated bot commits. State files are mounted at `/data` at runtime via Git Worktrees and pushed exclusively to `origin data`.
   - **Zero-Setup Auto-Provisioning:** When a user creates a new repo from the template, workflows detect the missing `data` branch and auto-provision an orphan `data` storage branch on first run.
   - **Monthly History Squashing:** A scheduled maintenance workflow (`maintenance.yml`, `0 0 1 * *`) periodically squashes accumulated state sync commits on the `data` branch into a single clean snapshot commit.
-  - *Public Repo Mode:* Runs `commands.yml` at high frequency (every **3–5 minutes**) with unlimited free Actions minutes.
+  - *Public Repo Mode:* Runs `commands.yml` at high frequency (**every 5 minutes**) with unlimited free Actions minutes.
   - *Private Repo Mode:* Runs `commands.yml` at **35-minute intervals** (`0,35 * * * *`) or utilizes Cloudflare Worker webhook proxy.
 - **FR19 — Concurrency & Push Resilience:** Use GitHub Actions concurrency groups (`git-state-storage`) and a resilient `git pull --rebase` retry loop targeting `origin data` to eliminate push conflicts.
 - **FR20 — Supergroup Topic Routing & Thread Retention:** Support Telegram Forum Supergroups by routing Newzy digests to `topic_news` and Remzy task alerts to `topic_tasks`. For tasks created in unbound topics, preserve `origin_thread_id` to direct deadline alerts back into the context thread.
@@ -133,6 +133,6 @@ RemNewz operates as a single Telegram bot presenting three specialized personas 
 - **Budget:** Exactly **$0.00**. Uses free tiers of GitHub Actions, Telegram Bot API, and free-tier AI providers (Google Gemini, OpenRouter, or Groq with user-specified models).
 - **Runners:** Headless Linux GitHub Actions runners (`ubuntu-latest`).
 - **Actions Minutes & Schedule Options:**
-  - **Private Repositories:** GitHub allocates **2,000 free runner minutes per month**. `commands.yml` is scheduled at **35-minute intervals** (`0,35 * * * *`), running 48 times/day $\approx 1,440$ minutes/month. Combined with twice-daily digests ($\approx 60$ minutes/month), total usage is $\approx 1,500$ minutes/month, safely within quota.
-  - **Public Repositories:** GitHub provides **unlimited free runner minutes**. When paired with our universal **Fernet encryption-at-rest**, users can toggle high-frequency polling (**every 3–5 minutes**) with complete privacy.
+  - **Private Repositories:** The GitHub Free plan allocates **2,000 free runner minutes per month**. `commands.yml` is scheduled at **35-minute intervals** (`0,35 * * * *`), running 48 times/day $\approx 1,440$ minutes/month. Combined with twice-daily digests ($\approx 60$ minutes/month), total usage is $\approx 1,500$ minutes/month, safely within quota. Exhausting this quota pauses workflows until the next billing cycle unless a spending limit is configured.
+  - **Public Repositories:** GitHub provides **unlimited free runner minutes**. When paired with our universal **Fernet encryption-at-rest**, users can toggle high-frequency polling (**every 5 minutes**) with complete privacy.
   - **Instantaneous Webhook Alternative:** For private repo users desiring sub-second responses without making their repo public, an optional free Cloudflare Workers webhook proxy is documented as an advanced recommendation.

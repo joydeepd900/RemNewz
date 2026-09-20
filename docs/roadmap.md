@@ -66,7 +66,7 @@ This roadmap divides the build into modular, verifiable phases. Each phase concl
   - Build `personas/helpzy.py` settings dispatcher:
     - Commands: `/config`, `/config add_topic`, `/config remove_topic`, `/config set_tz`, `/config set_style`, `/help`.
     - Persist overrides to `data/settings.json`.
-  - Create `commands.yml` workflow running on a **2-3 minute schedule** (`*/2 * * * *`) as the repo is public.
+  - Create `commands.yml` workflow running on a **5-minute schedule** (`*/5 * * * *`) as the repo is public (or via webhook for lower latency).
   - Add GitHub Actions `concurrency: git-state-storage` and `git pull --rebase` retry loop ensuring all actions during the window produce **at most one consolidated commit**.
 - **Verification Milestone:**
   - Tap `[ 📌 Remind Me ]` on a news item $\to$ confirm it appears in `/list`.
@@ -80,7 +80,7 @@ This roadmap divides the build into modular, verifiable phases. Each phase concl
 **Goal:** Protect public and private repositories with universal encryption and prepare the project for public distribution.
 
 - **Tasks:**
-  - Implement `engine/crypto.py` with AES-256 (Fernet) encryption at rest.
+  - Implement `engine/crypto.py` with Fernet encryption (AES-128-CBC with HMAC-SHA256) at rest.
   - Set up `ENCRYPTION_KEY` in GitHub Secrets to enable symmetric Fernet encryption (AES-128-CBC) for all task and state storage before git commit; decrypt in runner memory (later unified into `remnewz.db.enc`). Standardize across both public and private repos.
   - Validate that zero plaintext tasks appear in git history.
   - Polish `config.example.yml` with helpful commentary and cadence mode toggle (`public` vs `private`).

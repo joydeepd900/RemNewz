@@ -370,13 +370,14 @@ class TaskStore:
         conn = self._get_active_conn()
         cur = conn.cursor()
         
-        # Case-insensitive substring match
-        pattern = f"%{query.strip().lower()}%"
+        # Case-insensitive substring match with escaping
+        escaped_query = query.strip().lower().replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+        pattern = f"%{escaped_query}%"
         
         sql = """
             SELECT status, data, completed_at 
             FROM tasks 
-            WHERE (LOWER(json_extract(data, '$.title')) LIKE ? OR LOWER(id) LIKE ?)
+            WHERE (LOWER(json_extract(data, '$.title')) LIKE ? ESCAPE '\\' OR LOWER(id) LIKE ? ESCAPE '\\')
         """
         params = [pattern, pattern]
         
@@ -474,10 +475,9 @@ class TaskStore:
                 if comp_at.tzinfo is None:
                     comp_at = comp_at.replace(tzinfo=timezone.utc)
                     
-                days_ago = (now_utc - comp_at).days
-                if days_ago <= 7:
+                if comp_at >= now_utc - timedelta(days=7):
                     completed_7d += 1
-                if days_ago <= 30:
+                if comp_at >= now_utc - timedelta(days=30):
                     completed_30d += 1
                     
                 due_at_str = task.get("due_at")
