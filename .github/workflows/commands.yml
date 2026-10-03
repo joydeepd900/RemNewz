@@ -1,0 +1,95 @@
+# RemNewz — Commands & Polling Workflow
+# Phase 3+: Fetches updates from Telegram, processes commands, and evaluates deadlines.
+
+name: "Commands Poller"
+
+on:
+  workflow_dispatch:  # Allow manual triggering from the Actions UI
+  repository_dispatch:
+    types: [telegram-webhook]
+  schedule:
+    - cron: '*/5 * * * *'  # Every 5 minutes (GitHub Actions minimum)
+
+# Prevent concurrent runs from colliding on git state
+concurrency:
+  group: git-state-storage
+  cancel-in-progress: false
+
+jobs:
+  poll-and-process:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup data storage branch
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Remove placeholder data directory from main before attaching worktree
+          rm -rf data
+          
+          # Check if data branch exists on remote
+          if git ls-remote --exit-code --heads origin data >/dev/null 2>&1; then
+            echo "Remote 'data' branch found. Fetching..."
+            git fetch origin data:data
+            git worktree add data data
+          else
+            echo "First run: 'data' branch not found. Auto-provisioning dedicated storage branch..."
+            git worktree add --orphan -b data data
+            touch data/__init__.py
+            git -C data add .
+            git -C data commit -m "chore(init): auto-provision data storage branch [skip ci]"
+            git push origin data
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Mask Telegram Payload
+        run: |
+          PAYLOAD='${{ toJson(github.event.client_payload.update) }}'
+          if [ -n "$PAYLOAD" ] && [ "$PAYLOAD" != "null" ]; then
+            echo "::add-mask::$PAYLOAD"
+          fi
+
+      - name: Run commands pipeline
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_PAT: ${{ secrets.GITHUB_PAT }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          AI_PROVIDER: ${{ secrets.AI_PROVIDER }}
+          AI_MODEL: ${{ secrets.AI_MODEL }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+          TIMEZONE: ${{ secrets.TIMEZONE }}
+          TELEGRAM_UPDATE_PAYLOAD: ${{ toJson(github.event.client_payload.update) }}
+        run: python main_commands.py
+
+      - name: Commit and push state changes
+        run: |
+          cd data
+          git add .
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(sync): update tasks and settings [skip ci]"
+            # Resilient Pull-Rebase loop on dedicated data branch
+            for i in 1 2 3; do
+              git pull --rebase origin data && git push origin data && break || sleep 5
+            done
+          fi
+

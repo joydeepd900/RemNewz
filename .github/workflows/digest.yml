@@ -1,0 +1,87 @@
+# RemNewz — Newzy Digest Workflow
+# Phase 0: Manual trigger only (workflow_dispatch).
+# Phase 1+: Adds cron schedule for 8:00 AM & 8:00 PM digest delivery.
+
+name: "Newzy Digest"
+
+on:
+  workflow_dispatch:
+    # Manual trigger via GitHub UI or API
+  schedule:
+    - cron: '0 8 * * *'  # 8:00 AM UTC once daily
+
+# Prevent concurrent runs from colliding on git state
+concurrency:
+  group: git-state-storage
+  cancel-in-progress: false
+
+jobs:
+  send-digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup data storage branch
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Remove placeholder data directory from main before attaching worktree
+          rm -rf data
+          
+          # Check if data branch exists on remote
+          if git ls-remote --exit-code --heads origin data >/dev/null 2>&1; then
+            echo "Remote 'data' branch found. Fetching..."
+            git fetch origin data:data
+            git worktree add data data
+          else
+            echo "First run: 'data' branch not found. Auto-provisioning dedicated storage branch..."
+            git worktree add --orphan -b data data
+            touch data/__init__.py
+            git -C data add .
+            git -C data commit -m "chore(init): auto-provision data storage branch [skip ci]"
+            git push origin data
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run digest pipeline
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_PAT: ${{ secrets.GITHUB_PAT }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          AI_PROVIDER: ${{ secrets.AI_PROVIDER }}
+          AI_MODEL: ${{ secrets.AI_MODEL }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+          TIMEZONE: ${{ secrets.TIMEZONE }}
+        run: python main_digest.py
+
+      - name: Commit and push seen items
+        run: |
+          cd data
+          git add .
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(sync): update seen items [skip ci]"
+            # Resilient Pull-Rebase loop on dedicated data branch
+            for i in 1 2 3; do
+              git pull --rebase origin data && git push origin data && break || sleep 5
+            done
+          fi
+

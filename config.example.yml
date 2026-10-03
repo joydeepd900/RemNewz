@@ -1,0 +1,49 @@
+# RemNewz - Configuration File
+# Copy this to 'config.yml' if you're running locally.
+# Otherwise, for GitHub Actions, RemNewz will read directly from this file 
+# or use dynamic overrides from 'data/settings.enc'.
+
+# Topics the AI should search for on HackerNews/GitHub.
+# You can add or remove these via the Telegram /config add_topic command!
+topics:
+  - "Machine Learning"
+  - "Python"
+  - "Web Development"
+  - "Self-Hosted"
+  - "Open Source"
+
+# Digest Style defines how the AI will summarize the news.
+# Supported options: "concise" (default), "deep_dive", "technical", "bullet_points"
+# You can change this anytime in chat via: /config set_style <style>
+digest_style: "concise"
+
+# Maximum news items to deliver in each digest (1-15)
+# You can also change this in chat via: /config set_limit 5
+news_limit: 5
+
+# RSS and News Feeds
+# Add or remove these anytime in Telegram via: /source add <url> [label] or /source remove <num>
+rss_feeds:
+  - url: "https://news.ycombinator.com/rss"
+    label: "Hacker News"
+
+# Telegram Supergroup Topic Routing (Phase 5)
+# If RemNewz is in a Telegram Forum supergroup, you can route messages to specific topics.
+# Use the Helpzy commands `/config bind_news` or `/config bind_tasks` within a topic 
+# to dynamically set these in data/settings.enc, or hardcode them here.
+# topic_news: 2
+# topic_tasks: 4
+
+# Public vs Private Repository Notes:
+# If you are running RemNewz in a PUBLIC repository:
+# - GitHub Actions minutes are free and unlimited.
+# - The Telegram poller (commands.yml) will run every 5 minutes automatically.
+# - Privacy: Personal data is encrypted into data/*.enc before committing to git
+#   when an ENCRYPTION_KEY is provided in GitHub Secrets.
+#
+# If you are running RemNewz in a PRIVATE repository:
+# - GitHub Actions minutes are capped (usually 2,000 min/month free).
+# - A 5-minute poller will burn ~8,000 minutes a month and exhaust your quota.
+# - Recommendation: Change the cron in commands.yml to '*/30 * * * *' (every 30 mins)
+#   or disable the poller entirely and use a free Cloudflare Worker Webhook proxy 
+#   for instantaneous, free Telegram replies.
