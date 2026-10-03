@@ -35,6 +35,7 @@ export default {
 
       if (!response.ok) {
         const errorText = await response.text();
+        console.error(`[GitHub Error ${response.status}] URL: ${githubUrl} | Response: ${errorText}`);
         return new Response(`GitHub dispatch failed: ${errorText}`, { status: 500 });
       }
 
@@ -44,6 +45,7 @@ export default {
         status: 200
       });
     } catch (err) {
+      console.error("[Worker Catch Error]:", err);
       return new Response(`Error: ${err.message}`, { status: 500 });
     }
   }

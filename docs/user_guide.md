@@ -659,9 +659,9 @@ RemNewz runs serverlessly on GitHub Actions. Depending on your repository visibi
 ### Private Repositories (Quota-Efficient Batching or Webhook)
 
 - **Actions Minutes:** Capped at 2,000 free minutes per month.
-- **Option A - Batch Polling:** Runs every 35 minutes (`0,35 * * * *`), consuming approximately 1,440 minutes/month. Messages sent between intervals are queued safely by Telegram.
-- **Option B - Instantaneous Webhooks:** Deploy a free Cloudflare Worker that triggers a GitHub `repository_dispatch` event on every incoming message. This provides sub-second replies while consuming runner minutes only when messages arrive.
+- **Recommended Option - Instantaneous Webhooks:** Deploy a free Cloudflare Worker that triggers a GitHub `repository_dispatch` event on every incoming message. This provides sub-second replies while consuming runner minutes only when messages arrive.
   - See the [Cloudflare Worker Guide](cloudflare_worker_guide.md) for full setup instructions.
+- **Alternative - Batch Polling:** Runs every 35 minutes (`0,35 * * * *`), consuming approximately 1,440 minutes/month. Messages sent between intervals are queued safely by Telegram.
 
 ---
 
@@ -681,10 +681,9 @@ RemNewz runs serverlessly on GitHub Actions. Depending on your repository visibi
 
 ### Why hasn't the bot replied to my command immediately?
 
-If you are using a Private repository on the default 35-minute polling schedule, Telegram safely queues your message until the next runner cycle starts. If you require immediate responses, you can:
-
-- Trigger **Commands Poller** manually from the **Actions** tab in GitHub, or
-- Set up the [Cloudflare Worker Webhook Proxy](cloudflare_worker_guide.md).
+- **If using Polling:** If you are using a Private repository on the default 35-minute polling schedule, Telegram safely queues your message until the next runner cycle starts.
+- **If using Cloudflare Webhooks:** Ensure that your `GITHUB_PAT` has `repo` access, and that your `GITHUB_REPO` variable matches the private repository name exactly. Also, ensure GitHub Actions are **enabled** in your repository settings (they are disabled by default for generated templates). See [Cloudflare Worker Guide](cloudflare_worker_guide.md) for troubleshooting.
+- **General Fix:** You can always trigger the **Commands Poller** manually from the **Actions** tab in GitHub to force a sync.
 
 ### How do I check if my encryption key is active?
 
@@ -735,5 +734,12 @@ Telegram clients only show the command suggestion popup and menu button after th
    ```
 
 > **Note on Client Caching:** Telegram apps (Desktop, Mobile, Web) cache bot commands locally. After registering commands, completely quit and restart your Telegram app (or open your 1-on-1 private chat with the bot and tap the `Menu` / `[ / ]` button) to force Telegram to refresh its local autocomplete cache.
+
+### How and where should I keep my keys and secrets saved?
+
+When you generate API keys (Gemini, Groq, OpenRouter, GitHub PAT, Telegram Token) or your custom `ENCRYPTION_KEY`, **never store them in plaintext files** on your computer.
+- **Recommended:** Store them in a secure Password Manager as Secure Notes (e.g., Bitwarden, 1Password, Proton Pass, or Apple Keychain).
+- **`.env.example` Warning:** If you copy `.env.example` to `.env` for local testing, make sure you **delete your local `.env` file** before you ever push code to a remote repository.
+- **Production Storage:** Your keys should exclusively live securely encrypted within **GitHub Settings > Secrets and variables > Actions**.
 
 ---
