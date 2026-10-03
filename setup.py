@@ -569,10 +569,9 @@ def main():
     
     try:
         clean_env = input("\nWould you like to delete the local `.env` cache file now for security? [Y/n]: ").strip().lower()
-        if clean_env in ('', 'y', 'yes'):
-            if os.path.exists(".env"):
-                os.remove(".env")
-                print("✅ Cleaned up local `.env` cache file.")
+        if clean_env in ('', 'y', 'yes') and os.path.exists(".env"):
+            os.remove(".env")
+            print("✅ Cleaned up local `.env` cache file.")
     except Exception as e:
         print(f"⚠️ Could not delete .env: {e}")
 
