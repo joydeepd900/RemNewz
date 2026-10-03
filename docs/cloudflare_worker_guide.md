@@ -55,9 +55,11 @@ Cloudflare Workers provides a generous free tier of **100,000 requests per day**
 
 - Your forked or cloned **RemNewz** repository.
 - A free account on [Cloudflare](https://dash.cloudflare.com/) (no credit card required).
-- Your Telegram Bot Token from [@BotFather](https://t.me/BotFather).
+- Your Telegram Bot Token and GitHub PAT (see the **[Token & API Key Generation Guide](token_generation_guide.md)**).
 
----
+> [!TIP]
+> **Using the Automated Setup Wizard (`setup.py`)?**  
+> You don't need to perform Steps 1–5 manually! If you run `python setup.py`, the wizard automatically deploys this Cloudflare Worker script via Wrangler, configures secrets, and registers the Telegram webhook for you. Follow this manual guide only if you are deploying outside the wizard or troubleshooting.
 
 ## Step 1: Create a GitHub Personal Access Token (PAT)
 

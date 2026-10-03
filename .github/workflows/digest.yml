@@ -1,6 +1,6 @@
 # RemNewz — Newzy Digest Workflow
 # Phase 0: Manual trigger only (workflow_dispatch).
-# Phase 1+: Adds cron schedule for 8:00 AM & 8:00 PM digest delivery.
+# Phase 1+: Adds cron schedule for daily 8:00 AM UTC digest delivery.
 
 name: "Newzy Digest"
 

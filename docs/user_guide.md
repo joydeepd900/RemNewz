@@ -304,7 +304,7 @@ Remzy scans deadlines on every execution cycle:
 
 ## 3. Helpzy: In-Chat Settings & Configuration
 
-Helpzy handles system configuration and news execution triggers. Changes made via Helpzy are saved in `data/settings.enc` (encrypted at rest) and committed automatically to GitHub.
+Helpzy handles system configuration and news execution triggers. Changes made via Helpzy are saved in the `kv_store` table of `data/remnewz.db.enc` (encrypted at rest) and committed automatically to GitHub.
 
 ### Command Overview (`/help`)
 
@@ -389,7 +389,7 @@ Displays your active setting overrides in formatted JSON.
 
 ### Configure Timezone (`/config set_tz`)
 
-Configures your local IANA timezone. This controls when twice-daily digests are sent (8:00 AM & 8:00 PM) and aligns natural language task deadlines.
+Configures your local IANA timezone. This controls when the scheduled morning digest is evaluated and aligns natural language task deadlines.
 
 **Syntax:**
 
@@ -478,7 +478,7 @@ RemNewz allows you to add or remove RSS and Atom feeds dynamically directly from
 
 ### Configure Digest Item Limit (`/config set_limit`)
 
-Control the maximum number of news articles synthesized and delivered in each morning and evening digest (range: 1 to 15 items).
+Control the maximum number of news articles synthesized and delivered in each news digest (range: 1 to 15 items).
 
 **Syntax:**
 
@@ -599,7 +599,7 @@ Because Telegram's security model prevents bots from creating groups or forum to
 
      *Response:* `✅ Bound Task alerts to this topic.`
 
-That's it! Your twice-daily news digests will now post exclusively into `#News`, and your task due alerts will notify you in `#Tasks`.
+That's it! Your news digests will now post exclusively into `#News`, and your task due alerts will notify you in `#Tasks`.
 
 ---
 
@@ -661,7 +661,7 @@ RemNewz runs serverlessly on GitHub Actions. Depending on your repository visibi
 - **Actions Minutes:** Capped at 2,000 free minutes per month.
 - **Recommended Option - Instantaneous Webhooks:** Deploy a free Cloudflare Worker that triggers a GitHub `repository_dispatch` event on every incoming message. This provides sub-second replies while consuming runner minutes only when messages arrive.
   - See the [Cloudflare Worker Guide](cloudflare_worker_guide.md) for full setup instructions.
-- **Alternative - Batch Polling:** Runs every 35 minutes (`0,35 * * * *`), consuming approximately 1,440 minutes/month. Messages sent between intervals are queued safely by Telegram.
+- **Alternative - Batch Polling:** Runs every 30 minutes (`*/30 * * * *`), consuming approximately 1,440 minutes/month. Messages sent between intervals are queued safely by Telegram.
 
 ---
 
@@ -673,7 +673,7 @@ RemNewz runs serverlessly on GitHub Actions. Depending on your repository visibi
 - **Unified Encrypted SQLite Engine:** When `ENCRYPTION_KEY` is set, all active tasks, completed archives, settings, deduplication history, and polling cursors are consolidated into a single SQLite database (`remnewz.db.enc`) encrypted at rest using AES-128-CBC Fernet. The database is decrypted ephemerally during runner execution and atomically re-encrypted upon script completion with fail-secure validation.
 - **Dedicated Data Branch & Zero Git Clutter:** RemNewz isolates the encrypted database onto an orphan `data` branch. The `main` branch contains 100% clean application code with zero bot sync commits. This ensures your GitHub profile activity, contribution graph, and repository history remain uncluttered.
 - **Automated Monthly Maintenance:** A scheduled maintenance workflow (`maintenance.yml`) runs on the 1st of every month to squash accumulated commits on the `data` branch into a single clean snapshot commit.
-- **Planned Expansions:** Enabled by the unified SQLite architecture, upcoming commands will include `/search <query>` (fast full-text search across active and archived tasks) and `/stats` (completion metrics, velocity, and deadline compliance reports).
+- **Unified SQLite Commands:** Enabled by the unified SQLite architecture, Remzy supports `/search <query>` (fast full-text search across active and archived tasks) and `/stats` (completion metrics, velocity, and deadline compliance reports).
 
 ---
 
@@ -681,7 +681,7 @@ RemNewz runs serverlessly on GitHub Actions. Depending on your repository visibi
 
 ### Why hasn't the bot replied to my command immediately?
 
-- **If using Polling:** If you are using a Private repository on the default 35-minute polling schedule, Telegram safely queues your message until the next runner cycle starts.
+- **If using Polling:** If you are using a Private repository on the default 30-minute polling schedule, Telegram safely queues your message until the next runner cycle starts.
 - **If using Cloudflare Webhooks:** Ensure that your `GITHUB_PAT` has `repo` access, and that your `GITHUB_REPO` variable matches the private repository name exactly. Also, ensure GitHub Actions are **enabled** in your repository settings (they are disabled by default for generated templates). See [Cloudflare Worker Guide](cloudflare_worker_guide.md) for troubleshooting.
 - **General Fix:** You can always trigger the **Commands Poller** manually from the **Actions** tab in GitHub to force a sync.
 
@@ -728,6 +728,8 @@ Telegram clients only show the command suggestion popup and menu button after th
    done - Mark task completed (e.g. /done abc1234)
    remove - Delete task permanently
    history - View recently completed tasks
+   search - Search active & completed tasks
+   stats - Task velocity & completion analytics
    source - Manage news sources & RSS feeds
    config - Settings, timezones & topic binding
    help - Show command reference & help
@@ -738,8 +740,47 @@ Telegram clients only show the command suggestion popup and menu button after th
 ### How and where should I keep my keys and secrets saved?
 
 When you generate API keys (Gemini, Groq, OpenRouter, GitHub PAT, Telegram Token) or your custom `ENCRYPTION_KEY`, **never store them in plaintext files** on your computer.
+
+- **Step-by-Step Generation Guide:** Follow our comprehensive **[Token & API Key Generation Guide](token_generation_guide.md)** for acquiring all necessary keys.
 - **Recommended:** Store them in a secure Password Manager as Secure Notes (e.g., Bitwarden, 1Password, Proton Pass, or Apple Keychain).
 - **`.env.example` Warning:** If you copy `.env.example` to `.env` for local testing, make sure you **delete your local `.env` file** before you ever push code to a remote repository.
 - **Production Storage:** Your keys should exclusively live securely encrypted within **GitHub Settings > Secrets and variables > Actions**.
+
+### How do I update my existing repository with the latest RemNewz updates without losing data or settings?
+
+Thanks to RemNewz's **Dual-Branch Architecture**, updating your bot to the latest codebase is completely safe and will **never touch or overwrite your personal data**:
+
+- **Why it is safe:**
+  - The `main` branch contains strictly application code, workflows, and documentation.
+  - Your personal tasks, active topics, custom RSS feeds, deduplication caches, and setting overrides live exclusively on the isolated `data` branch inside the encrypted database (`remnewz.db.enc`).
+  - Your API tokens and keys live exclusively in GitHub Actions Repository Secrets.
+
+#### Step-by-Step Update Instructions
+
+##### Method 1: If your repository is a standard GitHub Fork
+
+1. Visit your repository page on GitHub.
+2. Under the repository header, click **Sync fork** $\to$ **Update branch**.
+
+##### Method 2: If your repository was created via "Use this template" (Git CLI)
+
+1. Open your local terminal or GitHub Codespace and run:
+
+   ```bash
+   # Add the upstream template repository (one-time setup)
+   git remote add upstream https://github.com/joydeepd900/RemNewz.git
+
+   # Fetch the latest template releases
+   git fetch upstream
+
+   # Merge the new code into your personal main branch
+   git checkout main
+   git merge upstream/main
+
+   # Push the updated code to your GitHub repo
+   git push origin main
+   ```
+
+2. If any new slash commands were introduced in the update, open the **Actions** tab on GitHub, click **Register Bot Commands**, and select **Run workflow** to update your Telegram client autocomplete menu.
 
 ---

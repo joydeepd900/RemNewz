@@ -1,7 +1,7 @@
 # RemNewz - Configuration File
 # Copy this to 'config.yml' if you're running locally.
 # Otherwise, for GitHub Actions, RemNewz will read directly from this file 
-# or use dynamic overrides from 'data/settings.enc'.
+# or use dynamic overrides from the kv_store table in 'data/remnewz.db.enc'.
 
 # Topics the AI should search for on HackerNews/GitHub.
 # You can add or remove these via the Telegram /config add_topic command!
@@ -30,7 +30,7 @@ rss_feeds:
 # Telegram Supergroup Topic Routing (Phase 5)
 # If RemNewz is in a Telegram Forum supergroup, you can route messages to specific topics.
 # Use the Helpzy commands `/config bind_news` or `/config bind_tasks` within a topic 
-# to dynamically set these in data/settings.enc, or hardcode them here.
+# to dynamically set these in data/remnewz.db.enc, or hardcode them here.
 # topic_news: 2
 # topic_tasks: 4
 
@@ -38,7 +38,7 @@ rss_feeds:
 # If you are running RemNewz in a PUBLIC repository:
 # - GitHub Actions minutes are free and unlimited.
 # - The Telegram poller (commands.yml) will run every 5 minutes automatically.
-# - Privacy: Personal data is encrypted into data/*.enc before committing to git
+# - Privacy: Personal data is encrypted into data/remnewz.db.enc before committing to git
 #   when an ENCRYPTION_KEY is provided in GitHub Secrets.
 #
 # If you are running RemNewz in a PRIVATE repository:

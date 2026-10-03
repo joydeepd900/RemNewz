@@ -11,8 +11,8 @@ This guide explains the trade-offs and provides clear instructions for switching
 | Feature | Public Repository | Private Repository (Scheduled Cron) | Private Repository (Cloudflare Webhook) |
 | :--- | :--- | :--- | :--- |
 | **GitHub Actions Minutes** | **100% Free & Unlimited** | Free tier capped at **2,000 min/mo** | Uses ~10–20 min/mo |
-| **Response Latency** | Fast (~3–5 minutes) | Slow (~35 minutes) | **Instantaneous (< 2 seconds)** |
-| **Workflow Schedule** | `*/5 * * * *` (every 5 min) | `0,35 * * * *` (every 35 min) | No cron needed (Webhook event) |
+| **Response Latency** | Fast (~3–5 minutes) | Slow (~30 minutes) | **Instantaneous (< 2 seconds)** |
+| **Workflow Schedule** | `*/5 * * * *` (every 5 min) | `*/30 * * * *` (every 30 min) | No cron needed (Webhook event) |
 | **Privacy / Encryption** | **Mandatory** (`ENCRYPTION_KEY`) | Recommended, but private by default | Recommended |
 | **Setup Effort** | 1-Click Fork & Add Secrets | 1-Click Fork + Edit Cron | 1-Click Fork + Cloudflare Worker |
 
@@ -32,7 +32,7 @@ When converting a repository from Public to Private:
 
 Because private repositories are capped at 2,000 Action minutes per month, a 5-minute poller will exhaust your quota in approximately 7 days.
 
-#### Option A: 35-Minute Poller
+#### Option A: 30-Minute Poller
 
 1. Open `.github/workflows/commands.yml`.
 2. Locate the `cron:` trigger:
@@ -40,7 +40,7 @@ Because private repositories are capped at 2,000 Action minutes per month, a 5-m
    ```yaml
    on:
      schedule:
-       - cron: '0,35 * * * *'  # Runs twice an hour (~1,440 min/month)
+       - cron: '*/30 * * * *'  # Runs twice an hour (~1,440 min/month)
    ```
 
 3. Commit changes to `main`.
@@ -117,3 +117,11 @@ You can check your configuration and get direct links at any time in Telegram:
 - `/config repo_mode` — Displays your repository options and a direct, one-click link to edit `.github/workflows/commands.yml` on GitHub.
 - `/source` — View and manage news and RSS feed sources.
 - `/config` — View all active overrides (timezone, topics, news limits).
+
+---
+
+## 5. Related Documentation
+
+- 🔑 **[Token & API Key Generation Guide](token_generation_guide.md)** — Step-by-step instructions for acquiring all bot credentials and secrets.
+- ⚡ **[Cloudflare Worker Webhook Proxy Guide](cloudflare_worker_guide.md)** — Set up instant responses for private repositories at zero cost.
+- 📖 **[User Guide & Persona Reference](user_guide.md)** — Full command reference and persona interactions.

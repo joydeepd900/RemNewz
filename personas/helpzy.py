@@ -141,11 +141,25 @@ class Helpzy:
                     self.settings["timezone"] = tz
                     self._save()
                     send_message(f"✅ Timezone set to: <b>{tz}</b>", chat_id=chat_id, message_thread_id=message_thread_id)
-                elif subcmd == "set_style" and len(args) > 1:
-                    style = args[1]
-                    self.settings["digest_style"] = style
-                    self._save()
-                    send_message(f"✅ Digest style set to: <b>{style}</b>", chat_id=chat_id, message_thread_id=message_thread_id)
+                elif subcmd == "set_style":
+                    if len(args) > 1:
+                        style = "_".join(args[1:]).lower()
+                        allowed_styles = ["concise", "deep_dive", "technical", "bullet_points"]
+                        if style not in allowed_styles:
+                            send_message(
+                                f"⚠️ Note: '<b>{style}</b>' is not a standard style. Supported styles: <code>concise</code>, <code>deep_dive</code>, <code>technical</code>, <code>bullet_points</code>.",
+                                chat_id=chat_id,
+                                message_thread_id=message_thread_id
+                            )
+                        self.settings["digest_style"] = style
+                        self._save()
+                        send_message(f"✅ Digest style set to: <b>{style}</b>", chat_id=chat_id, message_thread_id=message_thread_id)
+                    else:
+                        send_message(
+                            "❌ Usage: <code>/config set_style &lt;style&gt;</code>\nSupported options: <code>concise</code>, <code>deep_dive</code>, <code>technical</code>, <code>bullet_points</code>",
+                            chat_id=chat_id,
+                            message_thread_id=message_thread_id
+                        )
                 elif subcmd == "bind_news":
                     if message_thread_id is not None:
                         self.settings["topic_news"] = message_thread_id

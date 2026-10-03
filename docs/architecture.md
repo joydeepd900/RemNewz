@@ -76,6 +76,7 @@ remnewz/
 │   ├── roadmap.md                  # Build roadmap & verification checkpoints (Phases)
 │   ├── spec.md                     # Product requirements & specification document
 │   ├── structures.md               # Centralized Mermaid architecture diagrams
+│   ├── token_generation_guide.md   # Step-by-step API keys & tokens setup guide
 │   └── user_guide.md               # User guide & command reference
 ├── engine/
 │   ├── ai_client.py                # Multi-provider client (Gemini, OpenRouter, Groq with dynamic models)
@@ -98,6 +99,7 @@ remnewz/
 ├── tests/                          # Automated pytest test suites (untracked/local-only for security)
 ├── main_digest.py                  # Entrypoint for digest.yml and on-demand /digest /news
 ├── main_commands.py                # Entrypoint for commands.yml
+├── setup.py                        # Interactive Codespaces setup wizard & secret provisioner
 ├── requirements.txt                # Lightweight dependencies
 └── README.md                       # Open-source template documentation & setup guide
 ```

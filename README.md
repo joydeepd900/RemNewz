@@ -23,62 +23,75 @@ It also functions as a full Natural Language Processing (NLP) Task Manager. Simp
 
 ## Setup Guide
 
-There are two ways to set up RemNewz: the **Automated Setup (Recommended)**, which handles everything for you in minutes, or the **Manual Setup**.
-
-### Option A: Automated Setup (Recommended)
-The easiest way to set up RemNewz is to use our automated wizard inside a free GitHub Codespace. This method requires zero local installations and automatically configures your Telegram Bot, GitHub Secrets, and a free Cloudflare Webhook proxy for instant replies.
-
-1. **Create Repository:** Click **Use this template** at the top of this repository and name your new repo.
-2. **Open Codespace:** In your new repository, click the **`<> Code`** button, select the **Codespaces** tab, and click **Create codespace on main**.
-3. **Run Wizard:** Once the browser terminal loads, simply run:
-   ```bash
-   python setup.py
-   ```
-4. Follow the interactive prompts to paste your API keys. The wizard will securely provision your GitHub Secrets, deploy the Cloudflare Worker, and link your Telegram webhook automatically.
-5. **Delete Codespace (Recommended):** Once setup completes and you receive the Telegram confirmation message, you can safely close and delete your Codespace at [github.com/codespaces](https://github.com/codespaces) to free up your free monthly storage quota and wipe the temporary `.env` cache.
+Setting up RemNewz takes less than 5 minutes and runs on **100% free services** (GitHub Actions, Telegram Bot API, Google AI Studio, and Cloudflare Workers).
 
 ---
 
-### Option B: Manual Setup (If automated setup fails)
+### Step 1: Obtain Required Tokens & Credentials (Prerequisites)
 
-If you prefer to configure everything manually or if the setup script encounters issues, follow these steps:
+Before launching the setup wizard or manual configuration, have the following keys ready. For a detailed, screenshot-backed walkthrough, see the **[Token & API Key Generation Guide](docs/token_generation_guide.md)**.
 
-#### 1. Create Your Repository
-1. Click the **Use this template** button at the top of this repository.
-2. Name your repository. You can choose **Public** or **Private**:
-   - **Public:** GitHub Actions minutes are unlimited and free. The Telegram chat poller can run every 5 minutes continuously. Your personal data is safely encrypted.
-   - **Private:** GitHub Actions minutes are capped (typically 2,000/month). A 5-minute poller will exhaust your quota. You will need to change the cron schedule in `.github/workflows/commands.yml` to `*/30 * * * *` or utilize a Webhook.
+1. **Telegram Bot Token:** Message [@BotFather](https://t.me/BotFather) on Telegram, send `/newbot`, follow the prompts, and copy the **HTTP API Token**. Then open your new bot's chat and tap **Start** (or send `/start`).
+2. **Telegram Chat ID:** Auto-detected by `setup.py` when you send `/start`, or find it manually via `https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates`.
+3. **AI API Key (Google Gemini):** Get a free API key at [Google AI Studio](https://aistudio.google.com/app/apikey) (*Pluggable support for Groq or OpenRouter also available*).
+4. **GitHub Personal Access Token (PAT):** Go to [GitHub Settings > Developer Settings > Personal access tokens](https://github.com/settings/tokens). Generate a token with `repo` scope (or fine-grained token with `Contents: Read and write`). This allows Cloudflare to trigger instant webhook responses and provisions secrets.
+5. **Cloudflare Account (Optional/Recommended):** Create a free account at [dash.cloudflare.com](https://dash.cloudflare.com/sign-up) for instant sub-second bot replies.
 
-#### 2. Configure the Telegram Bot
-1. Open Telegram and message [@BotFather](https://t.me/BotFather).
-2. Send `/newbot`, choose a name, and copy the **HTTP API Token**.
-3. Send a message to your new bot to initialize the chat.
-4. Visit `https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates` in your web browser. Locate the `"chat": {"id": 123456789}` field and copy your chat ID.
+---
 
-#### 3. Generate an Encryption Key (Recommended)
-Run this Python snippet locally to generate a secure Fernet key:
+### Step 2: Choose Your Deployment Method
 
-```python
-from cryptography.fernet import Fernet
-print(Fernet.generate_key().decode('utf-8'))
-```
+Select either the **Automated Setup Wizard** (handles secrets, Cloudflare worker, and webhook linkage for you) or **Manual Setup**.
 
-#### 4. Configure GitHub Secrets
-Navigate to your repository **Settings > Secrets and variables > Actions** and add the following **Repository Secrets**:
+#### Option A: Automated Setup Wizard (Recommended)
 
-- `TELEGRAM_BOT_TOKEN`: The token provided by BotFather.
-- `TELEGRAM_CHAT_ID`: Your personal chat ID.
-- `AI_PROVIDER`: Choose `gemini`, `openrouter`, or `groq`.
-- `AI_MODEL`: The specific model string (e.g., `gemini-2.0-flash`, `llama-3.3-70b-versatile`).
-- `ENCRYPTION_KEY`: The Fernet key generated in the previous step.
-- `GEMINI_API_KEY`, `GROQ_API_KEY`, or `OPENROUTER_API_KEY`: Depending on your chosen AI provider.
+The easiest way to set up RemNewz is to use our interactive wizard inside a free GitHub Codespace. This method requires zero local installations and automatically configures your Telegram Bot, GitHub Secrets, database encryption, and a free Cloudflare Webhook proxy for instant replies.
 
-#### 5. Start the Bot
-1. Navigate to the **Actions** tab in your repository.
-2. Accept the prompt to enable workflows.
-3. Click on **Register Bot Commands**, then select **Run workflow**. This automatically pushes the bot's `/` command autocomplete menu across all Telegram scopes.
-4. Click on **Commands Poller**, then select **Run workflow**.
-5. Go to Telegram and type `/help`. RemNewz is now active and ready to assist.
+1. **Create Repository:** Click **Use this template** at the top of this repository and name your new repo.
+2. **Open Codespace:** In your new repository, click the **`<> Code`** button, select the **Codespaces** tab, and click **Create codespace on main**.
+3. **Install Dependencies & Run Wizard:** Once the browser terminal loads, run:
+   ```bash
+   pip install -r requirements.txt
+   python setup.py
+   ```
+4. **Follow Interactive Prompts:** Paste your prepared API keys. The wizard will validate tokens in real time, auto-detect your Telegram Chat ID, provision your GitHub Secrets, deploy the Cloudflare Worker, and link your Telegram webhook automatically.
+5. **Delete Codespace (Recommended):** Once setup completes and you receive the Telegram confirmation message, you can safely close and delete your Codespace at [github.com/codespaces](https://github.com/codespaces) to free up your monthly storage quota and wipe the temporary `.env` cache.
+
+---
+
+#### Option B: Manual Setup (Without Wizard)
+
+If you prefer to configure everything manually or without using GitHub Codespaces, follow these steps:
+
+1. **Create Your Repository:**
+   - Click **Use this template** at the top of this repository.
+   - Choose **Public** (unlimited free GitHub Actions minutes; personal data is AES-128 encrypted) or **Private** (capped at 2,000 min/month; set cron in `.github/workflows/commands.yml` to `*/30 * * * *` or use a Webhook).
+
+2. **Generate Database Encryption Key:**
+   - Run this Python snippet to generate a secure Fernet key:
+     ```python
+     from cryptography.fernet import Fernet
+     print(Fernet.generate_key().decode('utf-8'))
+     ```
+
+3. **Configure GitHub Secrets:**
+   - In your repository, go to **Settings > Secrets and variables > Actions** and add the following **Repository Secrets**:
+     - `TELEGRAM_BOT_TOKEN`: The token provided by @BotFather.
+     - `TELEGRAM_CHAT_ID`: Your personal numeric chat ID.
+     - `AI_PROVIDER`: `gemini` (or `groq` / `openrouter`).
+     - `AI_MODEL`: `gemini-2.0-flash` (or your preferred model string).
+     - `GEMINI_API_KEY`: Your key from Google AI Studio (or `GROQ_API_KEY` / `OPENROUTER_API_KEY`).
+     - `GITHUB_PAT`: Your GitHub Personal Access Token (with `repo` / `Contents:write` access).
+     - `ENCRYPTION_KEY`: The Fernet key generated in step 2.
+
+4. **Start the Bot:**
+   - Navigate to the **Actions** tab in your repository and accept the prompt to enable workflows.
+   - Select **Register Bot Commands**, then click **Run workflow** (registers `/` autocomplete menu with Telegram).
+   - Select **Commands Poller**, then click **Run workflow**.
+   - Open Telegram and send `/help`. RemNewz is now active and ready!
+
+5. **(Recommended) Deploy Webhook Proxy:**
+   - For sub-second responses and zero idle runner minute consumption, follow the [Cloudflare Worker Webhook Proxy Guide](docs/cloudflare_worker_guide.md).
 
 ## Commands and User Guide
 
@@ -99,7 +112,14 @@ RemNewz features three built-in personas: **Newzy** (News), **Remzy** (Tasks), a
 
 For a full reference of commands, natural language examples, and Supergroup topic routing instructions, see the [RemNewz User Guide](docs/user_guide.md).
 
-For visual system architecture, sequence diagrams, and flowcharts, see [System Structures & Diagrams](docs/structures.md).
+### Documentation & Guides
+
+- 📖 **[User Guide & Persona Reference](docs/user_guide.md)** — Comprehensive command reference, natural language examples, and Telegram Supergroup setup.
+- 🔑 **[Token & API Key Generation Guide](docs/token_generation_guide.md)** — Step-by-step instructions for BotFather, Gemini, GitHub PAT, and encryption keys.
+- ⚡ **[Cloudflare Worker Webhook Guide](docs/cloudflare_worker_guide.md)** — Zero-cost, sub-second responses and quota elimination for private repos.
+- 🛡️ **[Repository Modes Guide](docs/repo_modes_guide.md)** — Public vs. Private repository trade-offs, cron schedules, and migration steps.
+- 🏗️ **[System Architecture](docs/architecture.md)** — In-depth architectural design, subsystems, and code layout.
+- 📊 **[System Structures & Diagrams](docs/structures.md)** — Centralized visual Mermaid models, sequence diagrams, and state machines.
 
 ## Recommended: Instant Replies via Webhooks
 
