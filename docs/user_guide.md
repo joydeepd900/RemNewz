@@ -764,24 +764,47 @@ Thanks to RemNewz's **Dual-Branch Architecture**, updating your bot to the lates
 
 ##### Method 2: If your repository was created via "Use this template" (Git CLI)
 
-Repositories generated via GitHub's "Use this template" feature start with a brand-new root commit rather than sharing the upstream commit tree. To merge updates from the template, supply the `--allow-unrelated-histories` flag:
+Because GitHub templates generate a fresh root commit, standard git merging can produce `both added` conflicts across identical files. Use one of these two conflict-free methods:
 
-1. Open your local terminal or GitHub Codespace and run:
+###### Option A: Direct Reset (Recommended — 100% Conflict-Free)
 
-   ```bash
-   # Add the upstream template repository (one-time setup)
-   git remote add upstream https://github.com/joydeepd900/RemNewz.git
+Since RemNewz stores all personal data, tasks, and settings exclusively on the `data` branch, your `main` branch contains only application code. Resetting `main` to upstream is completely safe for your data and takes 5 seconds:
 
-   # Fetch the latest template releases
-   git fetch upstream
+```bash
+# 1. Add upstream template remote (one-time setup)
+git remote add upstream https://github.com/joydeepd900/RemNewz.git
 
-   # Merge upstream changes (the flag is required because GitHub templates create a new root commit)
-   git checkout main
-   git merge upstream/main --allow-unrelated-histories -m "chore: sync with upstream template"
+# 2. Fetch latest template releases
+git fetch upstream
 
-   # Push the updated code to your GitHub repo
-   git push origin main
-   ```
+# 3. Reset your main branch to match the latest upstream code cleanly
+git checkout main
+git reset --hard upstream/main
+
+# 4. Push the latest code to your GitHub repo
+git push origin main --force
+```
+
+###### Option B: Merge with Automated Conflict Resolution (No Force Push)
+
+If you have custom commits on `main` or your repository settings disallow force-pushing:
+
+```bash
+# 1. Fetch latest upstream commits
+git fetch upstream
+
+# 2. Merge while automatically prioritizing upstream template code
+git checkout main
+git merge upstream/main --allow-unrelated-histories -X theirs -m "chore: sync with upstream template"
+
+# 3. If any structural file conflicts appear, resolve all at once with:
+git checkout --theirs .
+git add .
+git commit -m "chore: sync with upstream template"
+
+# 4. Push to your GitHub repo
+git push origin main
+```
 
 2. If any new slash commands were introduced in the update, open the **Actions** tab on GitHub, click **Register Bot Commands**, and select **Run workflow** to update your Telegram client autocomplete menu.
 
