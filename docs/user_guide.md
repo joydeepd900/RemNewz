@@ -764,6 +764,8 @@ Thanks to RemNewz's **Dual-Branch Architecture**, updating your bot to the lates
 
 ##### Method 2: If your repository was created via "Use this template" (Git CLI)
 
+Repositories generated via GitHub's "Use this template" feature start with a brand-new root commit rather than sharing the upstream commit tree. To merge updates from the template, supply the `--allow-unrelated-histories` flag:
+
 1. Open your local terminal or GitHub Codespace and run:
 
    ```bash
@@ -773,9 +775,9 @@ Thanks to RemNewz's **Dual-Branch Architecture**, updating your bot to the lates
    # Fetch the latest template releases
    git fetch upstream
 
-   # Merge the new code into your personal main branch
+   # Merge upstream changes (the flag is required because GitHub templates create a new root commit)
    git checkout main
-   git merge upstream/main
+   git merge upstream/main --allow-unrelated-histories -m "chore: sync with upstream template"
 
    # Push the updated code to your GitHub repo
    git push origin main
