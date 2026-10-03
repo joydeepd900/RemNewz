@@ -562,6 +562,19 @@ def main():
     send_success_message(bot_token, chat_id)
     
     print_header("🎉 All Done! RemNewz is fully configured and ready.")
+    print("👉 Next Steps:")
+    print("1. Your bot is live! Open Telegram and send /help to test it.")
+    print("2. All credentials are now safely provisioned into your GitHub Secrets.")
+    print("3. You can safely close and delete this Codespace at https://github.com/codespaces.")
+    
+    try:
+        clean_env = input("\nWould you like to delete the local `.env` cache file now for security? [Y/n]: ").strip().lower()
+        if clean_env in ('', 'y', 'yes'):
+            if os.path.exists(".env"):
+                os.remove(".env")
+                print("✅ Cleaned up local `.env` cache file.")
+    except Exception as e:
+        print(f"⚠️ Could not delete .env: {e}")
 
 if __name__ == "__main__":
     try:

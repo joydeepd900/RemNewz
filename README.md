@@ -35,6 +35,7 @@ The easiest way to set up RemNewz is to use our automated wizard inside a free G
    python setup.py
    ```
 4. Follow the interactive prompts to paste your API keys. The wizard will securely provision your GitHub Secrets, deploy the Cloudflare Worker, and link your Telegram webhook automatically.
+5. **Delete Codespace (Recommended):** Once setup completes and you receive the Telegram confirmation message, you can safely close and delete your Codespace at [github.com/codespaces](https://github.com/codespaces) to free up your free monthly storage quota and wipe the temporary `.env` cache.
 
 ---
 
